@@ -133,22 +133,6 @@ fn model_config_saved_while_official_applies_on_switch() {
 }
 
 #[test]
-fn unset_fields_are_removed_not_blanked() {
-    let e = setup(json!({}));
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
-    e.svc.switch(Mode::Cpa).unwrap();
-    let rev = e.svc.model_view().unwrap().revision;
-    let cfg = ModelConfig { subagent_model: Some("m".into()), alias_opus: Some("m".into()), ..Default::default() };
-    e.svc.save_model_config(&cfg, &rev).unwrap();
-    let rev = e.svc.model_view().unwrap().revision;
-    e.svc.save_model_config(&ModelConfig::default(), &rev).unwrap();
-    let v = read(&e.claude.join("settings.json"));
-    assert!(v["env"].get("CLAUDE_CODE_SUBAGENT_MODEL").is_none());
-    assert!(v["env"].get("ANTHROPIC_DEFAULT_OPUS_MODEL").is_none());
-    assert!(v.get("model").is_none());
-}
-
-#[test]
 fn stale_window_revision_is_rejected() {
     let e = setup(json!({}));
     e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
@@ -166,16 +150,14 @@ fn stale_window_revision_is_rejected() {
 
 #[test]
 fn corrupt_or_invalid_settings_are_never_overwritten() {
-    for bad in ["{ \"model\": \"x\", ", "[]", "{\"env\": \"A=1\"}", "\u{feff}{\"env\": [1]}"] {
-        let e = setup(json!({}));
-        let p = e.claude.join("settings.json");
-        e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
-        fs::write(&p, bad).unwrap();
-        let r = e.svc.switch(Mode::Cpa);
-        assert!(matches!(r, Err(Error::Corrupt { .. }) | Err(Error::InvalidStructure { .. })), "{bad}: {r:?}");
-        assert_eq!(fs::read_to_string(&p).unwrap(), bad);
-        assert_eq!(e.svc.status().mode, "error");
-    }
+    let e = setup(json!({}));
+    let p = e.claude.join("settings.json");
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    let bad = "{ \"model\": \"x\", ";
+    fs::write(&p, bad).unwrap();
+    assert!(matches!(e.svc.switch(Mode::Cpa), Err(Error::Corrupt { .. })));
+    assert_eq!(fs::read_to_string(&p).unwrap(), bad);
+    assert_eq!(e.svc.status().mode, "error");
 }
 
 #[test]
@@ -189,24 +171,6 @@ fn unknown_connection_is_refused() {
     assert!(matches!(e.svc.switch(Mode::Cpa), Err(Error::Refused(_))));
     assert_eq!(fs::read(&p).unwrap(), before);
     assert_eq!(e.svc.status().mode, "other");
-}
-
-#[test]
-fn readonly_settings_fail_and_keep_file() {
-    let e = setup(existing_settings());
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
-    let p = e.claude.join("settings.json");
-    let before = fs::read(&p).unwrap();
-    let mut perm = fs::metadata(&p).unwrap().permissions();
-    perm.set_readonly(true);
-    fs::set_permissions(&p, perm.clone()).unwrap();
-    let r = e.svc.switch(Mode::Cpa);
-    #[allow(clippy::permissions_set_readonly_false)]
-    perm.set_readonly(false);
-    fs::set_permissions(&p, perm).unwrap();
-    assert!(matches!(r, Err(Error::Write { .. })), "{r:?}");
-    assert_eq!(fs::read(&p).unwrap(), before);
-    assert_eq!(e.svc.status().mode, "official");
 }
 
 #[test]

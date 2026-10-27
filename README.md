@@ -38,7 +38,7 @@
 3. 在窗口或托盘中切换到 CPA；切回官方时沿用 Claude Code 自己的登录。
 4. 切换后重新打开 Claude Code CLI。
 
-关闭窗口后 Pluck 留在托盘：右键菜单显示当前用户级默认模式和默认模型，可切换模式、打开窗口或退出；左键单击打开窗口。`pluck.exe --hidden` 启动时不显示窗口。
+关闭窗口后 Pluck 留在托盘并释放配置界面：右键菜单显示当前用户级默认模式和默认模型，可切换模式、打开窗口或退出；左键单击重新创建配置窗口。关闭结束本次编辑，未保存的修改会放弃；想稍后继续编辑可最小化窗口。`pluck.exe --hidden` 只启动托盘，不创建 WebView。
 
 ### Pluck 修改什么
 
@@ -81,11 +81,12 @@ pnpm tauri build        # 构建 src-tauri/target/release/pluck.exe 与 bundle/n
 
 ```powershell
 pnpm typecheck
-pnpm test:rust          # 配置读写、切换往返、失败保护、CPA 列表解析（临时目录）
-pnpm verify:cli         # 隔离用户目录 + 可控 CPA 替身 + 真实 Claude Code CLI
-pnpm verify:desktop     # 启动构建产物，驱动窗口与托盘并记录资源与响应
+pnpm test:rust          # 日常回归：核心配置流程与必要失败保护，全程临时目录
+pnpm verify:cli         # 按需：配置映射或 Claude 升级后的原生菜单兼容检查
+pnpm measure:resources  # 按需：Windows release 后台与隐藏窗口的资源回收测量
 ```
 
-- `verify:cli` 需要已安装 Claude Code CLI（2.1.242 及以上支持 `modelPicker`）。它在系统临时目录中建立独立的 `CLAUDE_CONFIG_DIR`，不读写当前用户的 `~/.claude`；`--report 路径` 输出报告，`--keep` 保留隔离目录。
-- `verify:desktop` 需要先构建，且运行期间桌面处于解锁状态；它会移动鼠标打开 Pluck 的托盘菜单，请勿同时操作桌面。报告与截图默认写到 `.forge/tmp/desktop-evidence/`。
+- `verify:cli` 需要已安装 Claude Code CLI（2.1.242 及以上支持 `modelPicker`）。它在临时目录和独立 PTY 中验证菜单、保存实际 ID、往返与新会话请求，不操作用户桌面，不读写真实 `~/.claude`；`--report 路径` 输出报告，`--keep` 保留隔离目录。
+- `measure:resources` 自动构建 release 测量入口，复用生产后台与窗口工厂，使用独立配置和 WebView 数据目录。窗口全程隐藏、不抢焦点、不移动鼠标；记录空闲及 5 次创建/关闭的进程、内存与 CPU，检查子进程是否回收。`--report 路径` 输出报告。
+- 窗口和托盘改动后的短人工检查见 [验证约定](docs/verification/checks.md)。不再保留自动控制用户鼠标、托盘或其他窗口的 GUI 脚本。历史首版报告留作当时产物的证据。
 - `pnpm mock-cpa -- --port 28317 --key test-key` 单独启动 CPA 替身；`/__set?models=error|invalid|empty|slow|ok` 切换列表行为。

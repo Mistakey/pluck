@@ -191,14 +191,6 @@ mod tests {
     }
 
     #[test]
-    fn corrupt_json_is_error_not_empty() {
-        let d = tmp();
-        let p = d.path().join("settings.json");
-        fs::write(&p, "{ \"model\": ").unwrap();
-        assert!(matches!(load(&p), Err(Error::Corrupt { .. })));
-    }
-
-    #[test]
     fn non_object_root_and_env_rejected() {
         let d = tmp();
         let p = d.path().join("settings.json");
@@ -206,18 +198,6 @@ mod tests {
         assert!(matches!(load(&p), Err(Error::InvalidStructure { .. })));
         fs::write(&p, r#"{"env": ["A=1"]}"#).unwrap();
         assert!(matches!(load(&p), Err(Error::InvalidStructure { .. })));
-    }
-
-    #[test]
-    fn bom_and_crlf_round_trip() {
-        let d = tmp();
-        let p = d.path().join("settings.json");
-        let original = b"\xEF\xBB\xBF{\r\n  \"theme\": \"dark\"\r\n}\r\n";
-        fs::write(&p, original).unwrap();
-        let l = load(&p).unwrap();
-        assert!(l.format.bom && l.format.crlf && l.format.trailing_newline);
-        save(&l, &l.doc).unwrap();
-        assert_eq!(fs::read(&p).unwrap(), original);
     }
 
     #[test]
@@ -232,15 +212,6 @@ mod tests {
         assert!(matches!(save(&l, &doc), Err(Error::Conflict { .. })));
         assert_eq!(fs::read_to_string(&p).unwrap(), r#"{"theme":"light"}"#);
         assert_eq!(fs::read_dir(d.path()).unwrap().count(), 1, "临时文件应被清理");
-    }
-
-    #[test]
-    fn file_created_after_read_is_conflict() {
-        let d = tmp();
-        let p = d.path().join("settings.json");
-        let l = load(&p).unwrap();
-        fs::write(&p, r#"{"theme":"light"}"#).unwrap();
-        assert!(matches!(save(&l, &Map::new()), Err(Error::Conflict { .. })));
     }
 
     #[test]

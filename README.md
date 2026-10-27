@@ -23,7 +23,7 @@
 
 采用 Tauri 2、Rust、React 和 TypeScript；Windows 是首个交付平台，不是项目永久的平台限制。首版规格关联 Forge 任务 `pluck-ehl`，任务状态由 Forge 维护。
 
-项目术语见 [GLOSSARY.md](GLOSSARY.md)，选型与配置管理理由见 [技术栈决策](docs/adr/0001-desktop-stack.md) 和 [原生配置决策](docs/adr/0002-native-config-and-saved-changes.md)，外部实现依据见 [CC Switch 与 Magpie 对照](docs/upstream/cc-switch-and-magpie.md)，首版验证记录见 [首版验证](docs/verification/first-release.md)。
+项目术语见 [GLOSSARY.md](GLOSSARY.md)，选型与配置管理理由见 [技术栈决策](docs/adr/0001-desktop-stack.md) 和 [原生配置决策](docs/adr/0002-native-config-and-saved-changes.md)，外部实现依据见 [CC Switch 与 Magpie 对照](docs/upstream/cc-switch-and-magpie.md)，首版验证记录见 [首版验证](docs/verification/first-release.md)，组件与边界见 [架构](docs/architecture.md)。
 
 后续候选见 [ROADMAP.md](ROADMAP.md)。候选不代表已承诺实现。
 

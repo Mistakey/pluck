@@ -19,10 +19,71 @@
 
 ## 项目状态
 
-已完成首版设计与 Forge 项目关联，尚未开始应用实现。首版先交付 Windows 上的 Claude Code CLI 配置管理：官方订阅与 CPA 切换、CPA 模型列表接入原生 `/model` 菜单，以及配置窗口和托盘入口。
+首版已在 Windows 上可用：通过配置窗口和托盘管理 Claude Code CLI 的用户级原生配置，切换官方与 CPA，并把 CPA 的模型列表接入 CLI 原生 `/model` 菜单。Skill 管理属于下一阶段。
 
 采用 Tauri 2、Rust、React 和 TypeScript；Windows 是首个交付平台，不是项目永久的平台限制。首版规格关联 Forge 任务 `pluck-ehl`，任务状态由 Forge 维护。
 
-项目术语见 [GLOSSARY.md](GLOSSARY.md)，选型与配置管理理由见 [技术栈决策](docs/adr/0001-desktop-stack.md) 和 [原生配置决策](docs/adr/0002-native-config-and-saved-changes.md)，外部实现依据见 [CC Switch 与 Magpie 对照](docs/upstream/cc-switch-and-magpie.md)。
+项目术语见 [GLOSSARY.md](GLOSSARY.md)，选型与配置管理理由见 [技术栈决策](docs/adr/0001-desktop-stack.md) 和 [原生配置决策](docs/adr/0002-native-config-and-saved-changes.md)，外部实现依据见 [CC Switch 与 Magpie 对照](docs/upstream/cc-switch-and-magpie.md)，首版验证记录见 [首版验证](docs/verification/first-release.md)，组件与边界见 [架构](docs/architecture.md)。
 
 后续候选见 [ROADMAP.md](ROADMAP.md)。候选不代表已承诺实现。
+
+## 使用
+
+运行安装包 `Pluck_0.1.0_x64-setup.exe`，或直接运行 `pluck.exe`（需要系统自带的 WebView2 运行时）。构建方法见下文。
+
+1. 在“CPA 连接”中填写 CPA 地址（例如 `http://127.0.0.1:8317`）和 Key，保存。
+2. 在“CPA 模型”中获取模型列表，勾选要放进 CLI `/model` 菜单的模型，按需选择默认模型、子代理默认模型和 opus / sonnet / haiku 别名映射，保存。
+3. 在窗口或托盘中切换到 CPA；切回官方时沿用 Claude Code 自己的登录。
+4. 切换后重新打开 Claude Code CLI。
+
+关闭窗口后 Pluck 留在托盘：右键菜单显示当前用户级默认模式和默认模型，可切换模式、打开窗口或退出；左键单击打开窗口。`pluck.exe --hidden` 启动时不显示窗口。
+
+### Pluck 修改什么
+
+Pluck 只修改 Claude Code 用户级配置 `settings.json`（`CLAUDE_CONFIG_DIR` 指定的目录，否则为 `%USERPROFILE%\.claude`）中的以下字段，其余设置保持文件中的实时值：
+
+- 连接：`env.ANTHROPIC_BASE_URL`、`env.ANTHROPIC_AUTH_TOKEN`（CPA 模式下写入），以及会覆盖官方登录的 `env.ANTHROPIC_API_KEY`。
+- 模型：`model`、`modelPicker`，以及 `env` 中的 `CLAUDE_CODE_SUBAGENT_MODEL`、`ANTHROPIC_MODEL`、`ANTHROPIC_DEFAULT_MODEL`、`ANTHROPIC_CUSTOM_MODEL_OPTION*`、`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL*`。
+
+官方和 CPA 各自保留模型字段的最新已保存值：切走前读取当前文件（包括在 CLI 里用 `/model` 保存的选择），切回时恢复。只对当前会话生效的选择（`/model` 中按 `s`、`--model` 启动参数）不会写入文件，也不会被当作已保存值。Pluck 不读写官方登录凭据（`.credentials.json`），也不修改项目级设置。
+
+以下情况 Pluck 拒绝写入，原文件保持不变，并在窗口或托盘菜单中显示原因：
+
+- `settings.json` 无法解析，或根节点、`env` 不是对象；
+- 文件只读、被其他程序占用，或在读取之后被其他程序修改；
+- 连接字段既不是官方也不是已保存的 CPA（例如手工配置的其他网关）。如果它就是你的 CPA，在窗口中保存同一地址即可接管。
+
+获取模型列表失败、响应无效或为空时，保留上一次成功获取的列表和现有配置。
+
+### 状态与生效范围
+
+窗口和托盘显示的是用户级默认配置，不代表所有正在运行的 CLI。运行中的会话可能热更新部分新增的环境变量，但删除的变量要重开 CLI 才清除，因此切换后请重开 CLI。项目级设置和 `--model` 等启动参数仍按 Claude Code 原生规则覆盖用户级默认。
+
+CLI 对不认识的模型 ID 会提示按 200k 上下文处理；需要时可参考官方文档为网关模型设置上下文窗口，Pluck 不改写模型 ID。
+
+### 本机数据
+
+CPA 地址、Key、模型列表和各模式的模型快照保存在 `%APPDATA%\com.pluck.desktop\state.json`（设置 `PLUCK_DATA_DIR` 可改到其他目录）。CPA 模式下 Key 同时写入 `settings.json` 的 `ANTHROPIC_AUTH_TOKEN`，这是 Claude Code 使用 CPA 的方式；窗口只显示 Key 尾号。
+
+## 开发
+
+需要 Node.js 20+、pnpm、Rust（MSVC 工具链）和 [Tauri 的 Windows 依赖](https://v2.tauri.app/start/prerequisites/#windows)。
+
+```powershell
+pnpm install
+pnpm tauri dev          # 开发运行
+pnpm tauri build        # 构建 src-tauri/target/release/pluck.exe 与 bundle/nsis 安装包
+```
+
+## 验证
+
+```powershell
+pnpm typecheck
+pnpm test:rust          # 配置读写、切换往返、失败保护、CPA 列表解析（临时目录）
+pnpm verify:cli         # 隔离用户目录 + 可控 CPA 替身 + 真实 Claude Code CLI
+pnpm verify:desktop     # 启动构建产物，驱动窗口与托盘并记录资源与响应
+```
+
+- `verify:cli` 需要已安装 Claude Code CLI（2.1.242 及以上支持 `modelPicker`）。它在系统临时目录中建立独立的 `CLAUDE_CONFIG_DIR`，不读写当前用户的 `~/.claude`；`--report 路径` 输出报告，`--keep` 保留隔离目录。
+- `verify:desktop` 需要先构建，且运行期间桌面处于解锁状态；它会移动鼠标打开 Pluck 的托盘菜单，请勿同时操作桌面。报告与截图默认写到 `.forge/tmp/desktop-evidence/`。
+- `pnpm mock-cpa -- --port 28317 --key test-key` 单独启动 CPA 替身；`/__set?models=error|invalid|empty|slow|ok` 切换列表行为。

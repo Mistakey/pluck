@@ -13,6 +13,17 @@
 
 截图：[模型配置](desktop/window-models.png)、[CPA 状态](desktop/window-cpa.png)、[写入失败提示](desktop/window-write-failure.png)、[重开读回](desktop/window-reopened.png)、[托盘菜单](desktop/tray-menu-cpa.png)、[托盘失败结果](desktop/tray-menu-failure.png)、[配置损坏时的托盘](desktop/tray-menu-corrupt.png)。
 
+## 产物留存
+
+收尾时原实现工作树的构建产物已不在当前仓库目录中，2026-10-27 从 `3830342a15089d0a3bd307c3ec6543fd1401142b`（包含独立审查批准的 `7167f9a`）重新执行 `pnpm install --frozen-lockfile` 与 `pnpm tauri build`，含 TypeScript 检查，均成功。应用代码未变，上述 CLI、桌面和 Rust 证据继续适用，本轮未重跑这些验证。
+
+exe 与 NSIS 安装包已作为上传附件保存在 [Forge 交付材料](https://192.168.30.11:3674/board/#/materials/727330ab27ea9d01e14036b19cad6889) revision 1，不依赖临时工作树留存。SHA-256：
+
+| 文件 | SHA-256 |
+| --- | --- |
+| `pluck.exe` | `8615b141aa9b0b4c420bc7a9db785d6dceee9ac38fa7d92dd5734b418ee684df` |
+| `Pluck_0.1.0_x64-setup.exe` | `3818dcca9d838914a1119ae005ed5a9ddfd8d719c052aa017bc0dd360f6050e7` |
+
 ## 观测
 
 取自本机两次桌面验证运行（审查前后各一次，非基准测试），链接的报告为最近一次：

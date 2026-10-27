@@ -31,6 +31,8 @@
 
 运行安装包 `Pluck_0.1.0_x64-setup.exe`，或直接运行 `pluck.exe`（需要系统自带的 WebView2 运行时）。构建方法见下文。
 
+首版 Windows x64 产物可从 [Forge 交付材料](https://192.168.30.11:3674/board/#/materials/727330ab27ea9d01e14036b19cad6889) 的附件下载，校验值见 [首版验证记录](docs/verification/first-release.md)。
+
 1. 在“CPA 连接”中填写 CPA 地址（例如 `http://127.0.0.1:8317`）和 Key，保存。
 2. 在“CPA 模型”中获取模型列表，勾选要放进 CLI `/model` 菜单的模型，按需选择默认模型、子代理默认模型和 opus / sonnet / haiku 别名映射，保存。
 3. 在窗口或托盘中切换到 CPA；切回官方时沿用 Claude Code 自己的登录。

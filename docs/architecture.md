@@ -21,3 +21,6 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 - 写入：仅用户级 `settings.json` 的管理范围字段，以及 Pluck 自己的 `state.json`（默认 `%APPDATA%\com.pluck.desktop`，可用 `PLUCK_DATA_DIR` 覆盖）。
 - 只读：`.credentials.json` 仅检测是否存在；项目级设置不读不写。
 - 模式不单独保存，每次从实时 `settings.json` 判定；切换顺序为：读取并校验 → 当前模式模型字段写入快照 → 以实时文件为底应用目标模式 → 原子写入。
+- CPA 使用中修改连接时，先保存完整原状态，再写本机数据与用户配置；用户配置写入失败则恢复原本机数据，包括已有模型列表和获取时间。模型草稿保存校验实时文件或 CPA 快照内容摘要，拒绝覆盖草稿打开后的外部修改。
+- Key 明文保存在 `state.json`，CPA 使用中写入 `env.ANTHROPIC_AUTH_TOKEN`；窗口只显示尾号。模型菜单默认保留内置选项，用户可明确选择替换，理由见 ADR 0002。
+- 关闭窗口仅隐藏窗口，WebView2 与主进程继续常驻，托盘退出才结束应用。实测资源记录见 [首版验证](verification/first-release.md)；隐藏时释放 WebView 尚未实现。

@@ -8,3 +8,9 @@
 Thumbs.db
 *.log
 .tmp/
+
+# 构建产物与依赖
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/

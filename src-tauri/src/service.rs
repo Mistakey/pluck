@@ -19,7 +19,6 @@ const WATCHED_PROCESS_ENV: &[&str] = &[
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_MODEL",
     "CLAUDE_CODE_SUBAGENT_MODEL",
-    "CLAUDE_CONFIG_DIR",
 ];
 
 pub const RELAUNCH_HINT: &str =

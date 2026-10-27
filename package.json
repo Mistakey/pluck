@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "mock-cpa": "node scripts/mock-cpa.mjs",
-    "verify:cli": "node scripts/verify-cli.mjs"
+    "verify:cli": "node scripts/verify-cli.mjs",
+    "verify:desktop": "node scripts/verify-desktop.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.0",

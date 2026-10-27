@@ -1,13 +1,14 @@
 //! 窗口命令、托盘与配置文件变化监视。
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder};
 
 use crate::error::Result;
 use crate::managed::{Mode, ModelConfig};
@@ -19,6 +20,7 @@ struct App {
     service: Arc<Service>,
     /// 托盘上展示的最近一次操作结果。
     last_result: Mutex<Option<String>>,
+    opening: AtomicBool,
 }
 
 #[derive(Clone, Serialize)]
@@ -29,8 +31,8 @@ struct OpEvent {
     source: &'static str,
 }
 
-fn notify(app: &AppHandle) {
-    refresh_tray(app);
+fn notify(app: &AppHandle, status: &Status) {
+    refresh_tray(app, status);
     let _ = app.emit("status-changed", ());
 }
 
@@ -46,7 +48,10 @@ fn finish(app: &AppHandle, r: Result<OpResult>) -> Result<OpResult> {
         Ok(o) => record(app, true, &o.message, "window"),
         Err(e) => record(app, false, &e.to_string(), "window"),
     }
-    notify(app);
+    match &r {
+        Ok(o) => refresh_tray(app, &o.status),
+        Err(_) => refresh_tray(app, &app.state::<App>().service.status()),
+    }
     r
 }
 
@@ -118,11 +123,10 @@ fn status_lines(s: &Status) -> (String, String) {
     (head, model)
 }
 
-fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+fn build_menu(app: &AppHandle, s: &Status) -> tauri::Result<Menu<tauri::Wry>> {
     let state = app.state::<App>();
-    let s = state.service.status();
     let last = state.last_result.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let (head, model) = status_lines(&s);
+    let (head, model) = status_lines(s);
     let menu = Menu::new(app)?;
     menu.append(&MenuItem::with_id(app, "status", head, false, None::<&str>)?)?;
     menu.append(&MenuItem::with_id(app, "status-model", model, false, None::<&str>)?)?;
@@ -145,36 +149,62 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Ok(menu)
 }
 
-fn refresh_tray(app: &AppHandle) {
+fn refresh_tray(app: &AppHandle, s: &Status) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
-    if let Ok(menu) = build_menu(app) {
+    if let Ok(menu) = build_menu(app, s) {
         let _ = tray.set_menu(Some(menu));
     }
-    let s = app.state::<App>().service.status();
-    let tip = match s.mode.as_str() {
+    let _ = tray.set_tooltip(Some(tooltip(s)));
+}
+
+fn tooltip(s: &Status) -> String {
+    match s.mode.as_str() {
         "error" => "Pluck · 用户配置无法读取".to_string(),
         _ => format!("Pluck · {} · {}", s.mode_label, s.model.as_deref().unwrap_or("默认模型")),
-    };
-    let _ = tray.set_tooltip(Some(tip));
+    }
+}
+
+/// 创建时先隐藏，由调用方决定是否展示和获取焦点。
+/// 供正常窗口和独立的资源测量入口复用；Windows 必须从工作线程调用。
+pub fn create_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?.build()
 }
 
 fn show_window(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.unminimize();
-        let _ = w.show();
-        let _ = w.set_focus();
+    if app.state::<App>().opening.swap(true, Ordering::AcqRel) {
+        return;
     }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let result = (|| -> tauri::Result<()> {
+            let w = match app.get_webview_window("main") {
+                Some(w) => w,
+                None => create_window(&app)?,
+            };
+            w.unminimize()?;
+            w.show()?;
+            w.set_focus()
+        })();
+        app.state::<App>().opening.store(false, Ordering::Release);
+        if let Err(e) = result {
+            record(&app, false, &format!("打开窗口失败：{e}"), "tray");
+            refresh_tray(&app, &app.state::<App>().service.status());
+        }
+    });
 }
 
 fn tray_switch(app: &AppHandle, mode: Mode) {
     let app = app.clone();
     std::thread::spawn(move || {
         let r = app.state::<App>().service.switch(mode);
-        match r {
+        match &r {
             Ok(o) => record(&app, true, &o.message, "tray"),
             Err(e) => record(&app, false, &e.to_string(), "tray"),
         }
-        notify(&app);
+        match &r {
+            Ok(o) => notify(&app, &o.status),
+            Err(_) => refresh_tray(&app, &app.state::<App>().service.status()),
+        }
     });
 }
 
@@ -191,15 +221,20 @@ fn watch_files(app: AppHandle, paths: Vec<PathBuf>) {
             let now: Vec<_> = paths.iter().map(file_stamp).collect();
             if now != last {
                 last = now;
-                notify(&app);
+                notify(&app, &app.state::<App>().service.status());
             }
         }
     });
 }
 
-pub fn run() {
+/// 与资源测量共用的生产应用入口，不依赖配置窗口存活。
+pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !args.iter().any(|arg| arg == "--hidden") {
+                show_window(app);
+            }
+        }))
         .invoke_handler(tauri::generate_handler![
             get_status,
             switch_mode,
@@ -218,12 +253,14 @@ pub fn run() {
             };
             let service = Arc::new(Service::new(claude_dir, &data_dir));
             let watched = vec![service.settings_path(), service.store_path().to_path_buf()];
-            app.manage(App { service, last_result: Mutex::new(None) });
+            let status = service.status();
+            app.manage(App { service, last_result: Mutex::new(None), opening: AtomicBool::new(false) });
 
-            let menu = build_menu(&handle)?;
+            let menu = build_menu(&handle, &status)?;
             TrayIconBuilder::with_id(TRAY_ID)
                 .icon(app.default_window_icon().cloned().ok_or("缺少应用图标")?)
                 .menu(&menu)
+                .tooltip(tooltip(&status))
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "to-official" => tray_switch(app, Mode::Official),
@@ -240,23 +277,26 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
-            refresh_tray(&handle);
-            watch_files(handle.clone(), watched);
-
-            if std::env::args().any(|a| a == "--hidden") {
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.hide();
-                }
-            }
+            watch_files(handle, watched);
             Ok(())
         })
-        .on_window_event(|window, event| {
-            // 关闭窗口只隐藏，Pluck 继续在托盘常驻。
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
-            }
-        })
-        .run(tauri::generate_context!())
-        .expect("Pluck 启动失败");
+        .build(context)
+        .expect("Pluck 启动失败")
+}
+
+/// 关闭最后一个配置窗口后保留托盘；显式退出仍正常退出。
+pub fn keep_tray_running(event: &RunEvent) {
+    if let RunEvent::ExitRequested { code: None, api, .. } = event {
+        api.prevent_exit();
+    }
+}
+
+pub fn run() {
+    let hidden = std::env::args().any(|a| a == "--hidden");
+    build(tauri::generate_context!()).run(move |app, event| {
+        keep_tray_running(&event);
+        if matches!(event, RunEvent::Ready) && !hidden {
+            show_window(app);
+        }
+    });
 }

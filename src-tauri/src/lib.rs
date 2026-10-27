@@ -5,7 +5,7 @@ pub mod service;
 pub mod settings_file;
 pub mod store;
 
-mod desktop;
+pub mod desktop;
 
 pub fn run() {
     desktop::run()

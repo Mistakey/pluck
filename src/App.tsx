@@ -98,13 +98,7 @@ export default function App() {
   const refresh = () =>
     run(
       "refresh",
-      async () => {
-        try {
-          return await api.refreshModels();
-        } finally {
-          loadStatus();
-        }
-      },
+      () => api.refreshModels(),
       (v) => {
         setView((old) => (old ? { ...old, models: v.models, fetchedAt: v.fetchedAt } : v));
         if (!draft) setDraft(v.config);
@@ -134,6 +128,7 @@ export default function App() {
   };
 
   const models: ModelInfo[] = view?.models ?? [];
+  const selected = new Set(draft?.pickerModels);
   const known = new Set(models.map((m) => m.id));
   const extraIds = draft
     ? [
@@ -289,7 +284,7 @@ export default function App() {
                     <label>
                       <input
                         type="checkbox"
-                        checked={draft.pickerModels.includes(m.id)}
+                        checked={selected.has(m.id)}
                         onChange={(e) => togglePicker(m.id, e.target.checked)}
                       />
                       <code>{m.id}</code>

@@ -1,6 +1,7 @@
 //! 从 CPA 获取模型列表。只接受结构完整、至少含一个模型的响应。
 
 use serde_json::Value;
+use std::collections::HashSet;
 use std::time::Duration;
 
 use crate::error::{Error, Result};
@@ -27,6 +28,7 @@ pub fn parse_models(body: &str) -> Result<Vec<ModelInfo>> {
         .and_then(Value::as_array)
         .ok_or_else(|| Error::Fetch("响应缺少 data 数组".into()))?;
     let mut out: Vec<ModelInfo> = Vec::new();
+    let mut seen = HashSet::new();
     for item in data {
         let id = item
             .get("id")
@@ -34,7 +36,7 @@ pub fn parse_models(body: &str) -> Result<Vec<ModelInfo>> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .ok_or_else(|| Error::Fetch("列表中存在缺少 id 的模型".into()))?;
-        if out.iter().any(|m| m.id == id) {
+        if !seen.insert(id) {
             continue;
         }
         let display_name = item

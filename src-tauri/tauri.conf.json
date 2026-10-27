@@ -13,12 +13,14 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
+        "focus": false,
         "title": "Pluck",
         "width": 760,
         "height": 820,
         "minWidth": 560,
         "minHeight": 520,
-        "visible": true
+        "visible": false
       }
     ],
     "security": {

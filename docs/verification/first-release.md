@@ -6,7 +6,7 @@
 
 | 入口 | 覆盖 | 结果 |
 | --- | --- | --- |
-| `pnpm test:rust` | 读写校验、BOM/CRLF、外部修改、只读、Windows 文件占用、切换往返与字段保留、未知连接拒写、CPA 使用中改地址时任一文件写入失败的一致性、旧草稿不覆盖往返中记录的 CLI 保存值、CPA 响应解析与失败 | 28 项通过 |
+| `pnpm test:rust` | 读写校验、BOM/CRLF、外部修改、只读、Windows 文件占用、切换往返与字段保留、未知连接拒写、CPA 使用中改地址时任一文件写入失败的一致性（含已有模型列表与获取时间）、旧草稿不覆盖往返中记录的 CLI 保存值、CPA 响应解析与失败 | 28 项通过 |
 | `pnpm verify:cli` | CPA 替身 + 服务层 + 真实 CLI：列表获取与失败、`/model` 菜单显示与选择实际 ID、CLI 保存的 Y 在往返与重开后保留、会话临时选择不落盘、项目级与 `--model` 覆盖、凭据不变 | 32/32，[报告](cli-report.md) |
 | `pnpm verify:desktop` | `pluck.exe` 实际运行：窗口编辑与切换、托盘状态/菜单/切换/打开/退出、外部修改同步、列表获取失败、只读与损坏文件、关闭后常驻、重开读回 | 34/34，[报告](desktop-report.md) |
 | `pnpm tauri build` | 构建 `pluck.exe` 与 NSIS 安装包 `Pluck_0.1.0_x64-setup.exe`（1.9 MiB） | 成功 |

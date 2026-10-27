@@ -259,6 +259,16 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
     let p = e.claude.join("settings.json");
     e.svc.save_cpa("http://127.0.0.1:18317", Some("k1")).unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
+    // 已有成功获取的模型列表与时间（直接写入本机数据，等同此前一次获取）。
+    let mut state = read(&data);
+    state["models"] = json!([{"id": "gpt-5.1-codex", "displayName": null}, {"id": "qwen3-coder-plus", "displayName": "Qwen3"}]);
+    state["modelsFetchedAt"] = json!(123456);
+    fs::write(&data, serde_json::to_string_pretty(&state).unwrap()).unwrap();
+    let list_kept = |svc: &Service| {
+        let v = svc.model_view().unwrap();
+        v.models.len() == 2 && v.fetched_at == Some(123456)
+    };
+    assert!(list_kept(&e.svc));
 
     // 本机数据不可写。
     let settings_before = fs::read(&p).unwrap();
@@ -269,8 +279,9 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
     assert_eq!(fs::read(&p).unwrap(), settings_before, "用户配置不应先被改写");
     let s = e.svc.status();
     assert_eq!((s.mode.as_str(), s.cpa_base_url.as_deref()), ("cpa", Some("http://127.0.0.1:18317")));
+    assert!(list_kept(&e.svc), "本机数据写入失败时模型列表保持");
 
-    // 用户配置不可写：本机数据恢复为原地址。
+    // 用户配置不可写：本机数据恢复为原地址与原列表。
     set_readonly(&p, true);
     let r = e.svc.save_cpa("http://127.0.0.1:18318", None);
     set_readonly(&p, false);
@@ -278,6 +289,7 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
     assert_eq!(fs::read(&p).unwrap(), settings_before);
     let s = e.svc.status();
     assert_eq!((s.mode.as_str(), s.cpa_base_url.as_deref()), ("cpa", Some("http://127.0.0.1:18317")));
+    assert!(list_kept(&e.svc), "用户配置写入失败时模型列表与获取时间恢复");
 
     // 失败后仍能正常切换。
     assert_eq!(e.svc.switch(Mode::Official).unwrap().status.mode, "official");

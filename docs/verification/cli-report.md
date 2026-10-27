@@ -1,6 +1,6 @@
 # CLI 隔离验证报告
 
-- 时间：2026-10-27T11:45:52.584Z
+- 时间：2026-10-27T11:58:41.424Z
 - 操作系统：Windows 11 Pro 10.0.26200
 - Claude Code：2.1.311 (Claude Code)
 - 结果：32/32 通过
@@ -34,7 +34,7 @@
 | A7 | 启动参数 --model 覆盖用户级默认 | 通过 | gpt-5.1-codex |
 | A7 | 切换不改写项目级设置 | 通过 |  |
 | A4 | 取消子代理默认与别名后移除对应原生配置 | 通过 |  |
-| A6 | 损坏的 settings.json 拒绝切换且不被覆盖 | 通过 | C:\Users\33137\AppData\Local\Temp\pluck-verify-gZcrZ5\claude\settings.json 无法解析，已停止写入以免覆盖原有设置：EOF while parsing a value at line 1 column 21 |
+| A6 | 损坏的 settings.json 拒绝切换且不被覆盖 | 通过 | C:\Users\33137\AppData\Local\Temp\pluck-verify-J2v08O\claude\settings.json 无法解析，已停止写入以免覆盖原有设置：EOF while parsing a value at line 1 column 21 |
 | A6 | 损坏时状态显示为无法读取 | 通过 |  |
 | A6 | 恢复文件后可继续读取 | 通过 |  |
 | A2 | 全程官方凭据文件不变 | 通过 |  |

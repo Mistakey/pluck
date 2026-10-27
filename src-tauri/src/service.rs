@@ -256,13 +256,14 @@ impl Service {
         let old_url = st.state.cpa.as_ref().map(|p| p.base_url.clone());
         let live_is_cpa = managed::detect(&loaded.doc, old_url.as_deref()) == Detected::Cpa
             || managed::detect(&loaded.doc, Some(&url)) == Detected::Cpa;
+        // 回滚用的完整原状态，必须在任何修改（包括清空模型列表）之前取得。
+        let previous = st.state.clone();
         let url_changed = old_url.as_deref() != Some(url.as_str());
         if url_changed {
             // 列表属于原来的服务，换地址后需重新获取。
             st.state.models.clear();
             st.state.models_fetched_at = None;
         }
-        let previous = st.state.clone();
         st.state.cpa = Some(CpaProfile { base_url: url.clone(), api_key: key.clone() });
         if live_is_cpa {
             // 两个文件必须一致：先保存本机数据，用户配置写入失败时恢复本机数据，

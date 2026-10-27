@@ -19,6 +19,10 @@
 
 ## 项目状态
 
-已完成仓库与初始文档建立，尚未开始实现。技术栈、界面和具体行为在对应功能开发时讨论。
+已完成首版设计与 Forge 项目关联，尚未开始应用实现。首版先交付 Windows 上的 Claude Code CLI 配置管理：官方订阅与 CPA 切换、CPA 模型列表接入原生 `/model` 菜单，以及配置窗口和托盘入口。
+
+采用 Tauri 2、Rust、React 和 TypeScript；Windows 是首个交付平台，不是项目永久的平台限制。首版规格关联 Forge 任务 `pluck-ehl`，任务状态由 Forge 维护。
+
+项目术语见 [GLOSSARY.md](GLOSSARY.md)，选型与配置管理理由见 [技术栈决策](docs/adr/0001-desktop-stack.md) 和 [原生配置决策](docs/adr/0002-native-config-and-saved-changes.md)，外部实现依据见 [CC Switch 与 Magpie 对照](docs/upstream/cc-switch-and-magpie.md)。
 
 后续候选见 [ROADMAP.md](ROADMAP.md)。候选不代表已承诺实现。

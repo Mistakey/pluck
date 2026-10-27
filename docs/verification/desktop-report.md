@@ -1,9 +1,9 @@
 # 桌面验证报告
 
-- 时间：2026-10-27T11:32:42.536Z
+- 时间：2026-10-27T11:48:03.980Z
 - 操作系统：Windows 11 Pro 10.0.26200；AMD Ryzen 5 5600X 6-Core Processor             ，12 个逻辑核，内存 80 GiB
 - Claude Code：2.1.311 (Claude Code)
-- 产物：src-tauri\target\release\pluck.exe（4.8 MiB）
+- 产物：src-tauri\target\release\pluck.exe（4.9 MiB）
 - 结果：34/34 通过
 
 ## 检查
@@ -31,16 +31,16 @@
 | A5/A7 | 外部保存的默认模型自动显示在托盘 | 通过 | Pluck · CPA · qwen3-coder-plus |
 | A4/A5 | 模型控件显示实时文件中的 Y | 通过 | qwen3-coder-plus |
 | A3/A6 | 刷新失败在窗口提示并保留原列表 | 通过 | CPA 模型列表获取失败，已保留原列表：HTTP 500 Internal Server Error：{"error":"upstream unavailable"} 关闭 |
-| A6 | 窗口切换遇只读文件时提示失败且原文件不变 | 通过 | 写入 C:\Users\33137\AppData\Local\Temp\pluck-desktop-lovWV2\claude\settings.json 失败，原文件未改动：文件为只读 关闭 |
+| A6 | 窗口切换遇只读文件时提示失败且原文件不变 | 通过 | 写入 C:\Users\33137\AppData\Local\Temp\pluck-desktop-9U0pjE\claude\settings.json 失败，原文件未改动：文件为只读 关闭 |
 | A6 | 托盘菜单显示上次操作失败原因 | 通过 | 上次操作：失败：写入 C:\Users\33137\AppData\Local\Temp\pluck-de… |
 | A6 | 托盘切换遇只读文件时原文件不变、状态仍为 CPA | 通过 |  |
-| A6 | 托盘失败结果同步到窗口 | 通过 | 托盘：写入 C:\Users\33137\AppData\Local\Temp\pluck-desktop-lovWV2\claude\settings.json 失败，原文件未改动：文件为只读 关闭 |
+| A6 | 托盘失败结果同步到窗口 | 通过 | 托盘：写入 C:\Users\33137\AppData\Local\Temp\pluck-desktop-9U0pjE\claude\settings.json 失败，原文件未改动：文件为只读 关闭 |
 | A6 | 损坏的配置在窗口与托盘显示为无法读取 | 通过 |  |
-| A6 | 损坏时托盘显示无法读取、切换项不可用，文件不被覆盖 | 通过 | 用户配置无法读取 / C:\Users\33137\AppData\Local\Temp\pluck-desktop-lovWV2\claud… / 切换到官方 / 切换到 CPA / 上次操作：失败：写入 C:\Users\33137\AppData\Local\Temp\pluck-de… / 打开配置窗口 / 退出 Pluck |
+| A6 | 损坏时托盘显示无法读取、切换项不可用，文件不被覆盖 | 通过 | 用户配置无法读取 / C:\Users\33137\AppData\Local\Temp\pluck-desktop-9U0pjE\claud… / 切换到官方 / 切换到 CPA / 上次操作：失败：写入 C:\Users\33137\AppData\Local\Temp\pluck-de… / 打开配置窗口 / 退出 Pluck |
 | A1 | 关闭窗口后窗口隐藏、Pluck 仍在托盘常驻 | 通过 |  |
 | A1 | 托盘单击重新打开配置窗口 | 通过 |  |
 | A1 | 托盘“退出 Pluck”结束进程 | 通过 |  |
-| A1 | 重开后读回 CPA 模式、地址、模型与列表 | 通过 | http://127.0.0.1:49831, 3 |
+| A1 | 重开后读回 CPA 模式、地址、模型与列表 | 通过 | http://127.0.0.1:64764, 3 |
 | A1 | 重开后托盘状态正确 | 通过 | Pluck · CPA · qwen3-coder-plus |
 | A2 | 最终切回官方：其他设置保留，凭据不变 | 通过 |  |
 | D3 | 本机数据保存 Key，官方模式用户配置不含 Key | 通过 |  |
@@ -49,14 +49,14 @@
 
 | 项目 | 数值 |
 | --- | --- |
-| 首次：启动到窗口显示状态 | 8945 ms |
-| 获取模型列表响应 | 120 ms |
-| 窗口切换官方→CPA（点击到结果显示） | 457 ms |
-| 托盘切换 CPA→官方（点击菜单到文件写入） | 310 ms |
-| 托盘切换 官方→CPA（点击菜单到文件写入） | 232 ms |
-| 重开：启动到窗口显示状态 | 3152 ms |
-| 正常启动到窗口出现（无远程调试） | 1822 ms |
-| 窗口打开时：进程数 / 工作集 / 专用内存 | 7 / 389.2 MiB / 424.4 MiB |
-| 托盘常驻（窗口关闭 30 秒后）：进程数 / 工作集 / 专用内存 | 7 / 400.4 MiB / 425.6 MiB |
-| 其中 pluck.exe 主进程：工作集 / 专用内存 | 40.0 MiB / 64.5 MiB |
-| 托盘常驻 CPU（10 秒采样） | 0.00%（占 12 个逻辑核） |
+| 首次：启动到窗口显示状态 | 2651 ms |
+| 获取模型列表响应 | 58 ms |
+| 窗口切换官方→CPA（点击到结果显示） | 59 ms |
+| 托盘切换 CPA→官方（点击菜单到文件写入） | 170 ms |
+| 托盘切换 官方→CPA（点击菜单到文件写入） | 188 ms |
+| 重开：启动到窗口显示状态 | 3892 ms |
+| 正常启动到窗口出现（无远程调试） | 1154 ms |
+| 窗口打开时：进程数 / 工作集 / 专用内存 | 7 / 383.4 MiB / 402.8 MiB |
+| 托盘常驻（窗口关闭 30 秒后）：进程数 / 工作集 / 专用内存 | 7 / 398.6 MiB / 405.5 MiB |
+| 其中 pluck.exe 主进程：工作集 / 专用内存 | 40.1 MiB / 64.7 MiB |
+| 托盘常驻 CPU（10 秒采样） | 0.01%（占 12 个逻辑核） |

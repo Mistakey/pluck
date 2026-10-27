@@ -243,3 +243,80 @@ fn config_dir_resolution() {
     assert_eq!(resolve_claude_dir(Some("  ".into()), Some(home.clone())), Some(home.join(".claude")));
     assert_eq!(resolve_claude_dir(Some("D:/cc".into()), Some(home)), Some(PathBuf::from("D:/cc")));
 }
+
+fn set_readonly(p: &Path, ro: bool) {
+    let mut perm = fs::metadata(p).unwrap().permissions();
+    #[allow(clippy::permissions_set_readonly_false)]
+    perm.set_readonly(ro);
+    fs::set_permissions(p, perm).unwrap();
+}
+
+/// 审查 S1：CPA 使用中更改地址，任一文件写入失败时两份数据保持一致，模式仍可切换。
+#[test]
+fn changing_active_cpa_is_consistent_when_either_file_fails() {
+    let e = setup(json!({"theme": "dark"}));
+    let data = e._root.path().join("pluck-data").join("state.json");
+    let p = e.claude.join("settings.json");
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k1")).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+
+    // 本机数据不可写。
+    let settings_before = fs::read(&p).unwrap();
+    set_readonly(&data, true);
+    let r = e.svc.save_cpa("http://127.0.0.1:18318", None);
+    set_readonly(&data, false);
+    assert!(matches!(r, Err(Error::Write { .. })), "{r:?}");
+    assert_eq!(fs::read(&p).unwrap(), settings_before, "用户配置不应先被改写");
+    let s = e.svc.status();
+    assert_eq!((s.mode.as_str(), s.cpa_base_url.as_deref()), ("cpa", Some("http://127.0.0.1:18317")));
+
+    // 用户配置不可写：本机数据恢复为原地址。
+    set_readonly(&p, true);
+    let r = e.svc.save_cpa("http://127.0.0.1:18318", None);
+    set_readonly(&p, false);
+    assert!(matches!(r, Err(Error::Write { .. })), "{r:?}");
+    assert_eq!(fs::read(&p).unwrap(), settings_before);
+    let s = e.svc.status();
+    assert_eq!((s.mode.as_str(), s.cpa_base_url.as_deref()), ("cpa", Some("http://127.0.0.1:18317")));
+
+    // 失败后仍能正常切换。
+    assert_eq!(e.svc.switch(Mode::Official).unwrap().status.mode, "official");
+}
+
+/// 审查 S2：官方模式下打开的旧草稿，在往返切换记录了 CLI 保存的 Y 之后不能覆盖 Y。
+#[test]
+fn stale_snapshot_draft_cannot_overwrite_cli_saved_model() {
+    let e = setup(json!({"theme": "dark"}));
+    let p = e.claude.join("settings.json");
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    let v = e.svc.model_view().unwrap();
+    e.svc.save_model_config(&ModelConfig { default_model: Some("model-X".into()), ..Default::default() }, &v.revision).unwrap();
+
+    // 窗口在官方模式下读取（草稿基于 X）。
+    let draft = e.svc.model_view().unwrap();
+    assert_eq!(draft.source, "saved");
+
+    // 托盘切到 CPA，CLI 保存 Y，托盘切回官方。
+    e.svc.switch(Mode::Cpa).unwrap();
+    let mut s = read(&p);
+    s["model"] = json!("model-Y");
+    fs::write(&p, s.to_string()).unwrap();
+    e.svc.switch(Mode::Official).unwrap();
+
+    // 旧草稿保存被拒绝，快照仍为 Y。
+    let r = e.svc.save_model_config(
+        &ModelConfig { default_model: Some("model-X".into()), subagent_model: Some("z".into()), ..Default::default() },
+        &draft.revision,
+    );
+    assert!(matches!(r, Err(Error::Refused(_))), "{r:?}");
+    let fresh = e.svc.model_view().unwrap();
+    assert_eq!(fresh.config.default_model.as_deref(), Some("model-Y"));
+    assert_ne!(fresh.revision, draft.revision);
+
+    // 用最新版本保存可以成功；切回 CPA 后为 Y。
+    e.svc.save_model_config(&ModelConfig { subagent_model: Some("z".into()), ..fresh.config.clone() }, &fresh.revision).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+    let s = read(&p);
+    assert_eq!(s["model"], "model-Y");
+    assert_eq!(s["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "z");
+}

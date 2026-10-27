@@ -93,6 +93,12 @@ fn key_hint(key: &str) -> String {
     format!("****{tail}")
 }
 
+/// 已保存 CPA 模型设置的版本：内容变化即版本变化，与实时文件版本互不相同。
+fn snapshot_revision(snapshot: &Option<Map<String, Value>>) -> String {
+    let text = snapshot.as_ref().map(|m| Value::Object(m.clone()).to_string()).unwrap_or_default();
+    format!("saved:{}", settings_file::revision_of(text.as_bytes()))
+}
+
 fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
@@ -256,11 +262,22 @@ impl Service {
             st.state.models.clear();
             st.state.models_fetched_at = None;
         }
+        let previous = st.state.clone();
         st.state.cpa = Some(CpaProfile { base_url: url.clone(), api_key: key.clone() });
         if live_is_cpa {
-            let doc = managed::apply(&loaded.doc, &managed::extract_model_fields(&loaded.doc), Some((&url, &key)));
-            settings_file::save(&loaded, &doc)?;
+            // 两个文件必须一致：先保存本机数据，用户配置写入失败时恢复本机数据，
+            // 使已保存的 CPA 地址始终与 settings.json 中的连接相符。
             self.store.save(&mut st)?;
+            let doc = managed::apply(&loaded.doc, &managed::extract_model_fields(&loaded.doc), Some((&url, &key)));
+            if let Err(e) = settings_file::save(&loaded, &doc) {
+                st.state = previous;
+                if let Err(restore) = self.store.save(&mut st) {
+                    return Err(Error::Refused(format!(
+                        "{e}；恢复 Pluck 本机数据也失败（{restore}），请在问题解决后重新保存 CPA 连接。"
+                    )));
+                }
+                return Err(e);
+            }
             return Ok(self.done(format!("CPA 连接已保存，并已更新当前用户配置。{RELAUNCH_HINT}")));
         }
         self.store.save(&mut st)?;
@@ -303,7 +320,7 @@ impl Service {
                 loaded.revision.clone().unwrap_or_default(),
             )
         } else {
-            (st.snapshots.cpa.clone().unwrap_or_default(), "saved", "saved".to_string())
+            (st.snapshots.cpa.clone().unwrap_or_default(), "saved", snapshot_revision(&st.snapshots.cpa))
         };
         Ok(ModelView {
             config: managed::read_model_config(&fields),
@@ -321,9 +338,15 @@ impl Service {
         let loaded = settings_file::load(&self.settings_path())?;
         let cpa_url = st.state.cpa.as_ref().map(|p| p.base_url.clone());
         let live = managed::detect(&loaded.doc, cpa_url.as_deref()) == Detected::Cpa;
-        let expected = if live { loaded.revision.clone().unwrap_or_default() } else { "saved".into() };
-        if revision != expected {
-            return Err(Error::Conflict { path: self.settings_path() });
+        if live {
+            if revision != loaded.revision.clone().unwrap_or_default() {
+                return Err(Error::Conflict { path: self.settings_path() });
+            }
+        } else if revision != snapshot_revision(&st.state.snapshots.cpa) {
+            // 窗口打开后 CPA 设置已更新（例如往返切换时记录了 CLI 保存的模型），旧草稿不能覆盖它。
+            return Err(Error::Refused(
+                "CPA 模型配置在窗口打开后已更新（例如切换模式时记录了 CLI 保存的修改），未保存。请点“放弃修改”读取最新值后再改。".into(),
+            ));
         }
         if live {
             let mut doc = loaded.doc.clone();

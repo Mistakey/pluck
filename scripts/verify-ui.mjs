@@ -394,6 +394,114 @@ try {
     await button("重新载入连接").click();
     await chosen("地址", "http://external.invalid");
   });
+  for (const command of ["refresh_models", "save_cpa"]) {
+    for (const hasDraft of [false, true]) {
+      await test(`V3 ${command} 期间外部通知在完成后协调${hasDraft ? "已有草稿" : "未编辑值"}`, async () => {
+        await boot();
+        if (hasDraft) await dirty();
+        let resolve;
+        backend.defer = {
+          cmd: command,
+          promise: new Promise((r) => (resolve = r)),
+        };
+        const initialReads = backend.calls.filter(
+          (c) => c.cmd === "get_models",
+        ).length;
+        let response;
+        if (command === "save_cpa") {
+          await button("编辑连接").click();
+          await field("API Key").fill("saved-key");
+          response = {
+            message: "连接已保存",
+            status: clone(backend.status),
+            beforeModelRevision: backend.view.revision,
+            modelView: clone(backend.view),
+          };
+          await button("保存连接").click();
+        } else await button("刷新列表").click();
+        await poll(() => backend.calls.some((c) => c.cmd === command));
+        backend.view.config.defaultModel = hasDraft ? "model-a" : "model-b";
+        backend.view.revision = "external-during-operation";
+        backend.status.cpaBaseUrl = "http://external-during-operation.invalid";
+        backend.status.connectionRevision = "external-connection";
+        await emit();
+        resolve(command === "save_cpa" ? response : clone(backend.view));
+        await poll(
+          () =>
+            backend.calls.filter((c) => c.cmd === "get_models").length >
+            initialReads,
+        );
+        await poll(
+          async () =>
+            (await page.locator(".connection-summary code").textContent()) ===
+            backend.status.cpaBaseUrl,
+        );
+        await chosen("默认模型", "model-b");
+        if (hasDraft) {
+          await page.locator(".conflict").waitFor();
+          await button("保存配置").click();
+          assert.equal(
+            backend.calls.filter((c) => c.cmd === "save_model_config").length,
+            0,
+          );
+          await chosen("默认模型", "model-b");
+        } else assert.equal(await page.locator(".conflict").count(), 0);
+      });
+    }
+  }
+  await test("V3 补读期间再次收到通知仍会协调最新值", async () => {
+    await boot();
+    let finishRefresh, finishRead;
+    backend.defer = {
+      cmd: "refresh_models",
+      promise: new Promise((r) => (finishRefresh = r)),
+    };
+    await button("刷新列表").click();
+    backend.view.config.defaultModel = "model-a";
+    backend.view.revision = "external-one";
+    await emit();
+    const first = clone(backend.view);
+    const reads = backend.calls.filter((c) => c.cmd === "get_models").length;
+    backend.defer = {
+      cmd: "get_models",
+      promise: new Promise((r) => (finishRead = r)),
+    };
+    finishRefresh(first);
+    await poll(
+      () => backend.calls.filter((c) => c.cmd === "get_models").length > reads,
+    );
+    backend.view.config.defaultModel = "model-b";
+    backend.view.revision = "external-two";
+    await emit();
+    finishRead(first);
+    await poll(
+      async () => (await field("默认模型").inputValue()) === "model-b",
+    );
+    assert.equal(await page.locator(".conflict").count(), 0);
+  });
+  await test("V3 操作使通知触发的在途读取失效后仍会补读", async () => {
+    await boot();
+    let finishRead;
+    backend.defer = {
+      cmd: "get_models",
+      promise: new Promise((r) => (finishRead = r)),
+    };
+    const old = clone(backend.view);
+    backend.view.config.defaultModel = "model-b";
+    backend.view.revision = "external-before-operation";
+    await emit();
+    const reads = backend.calls.filter((c) => c.cmd === "get_models").length;
+    await button("刷新列表").click();
+    await poll(
+      () => backend.calls.filter((c) => c.cmd === "get_models").length > reads,
+    );
+    await poll(
+      async () => (await field("默认模型").inputValue()) === "model-b",
+    );
+    finishRead(old);
+    await new Promise((r) => setTimeout(r, 50));
+    await chosen("默认模型", "model-b");
+  });
   await test("V3 晚到读取不能覆盖新编辑或更新状态", async () => {
     await boot();
     let resolve;

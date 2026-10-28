@@ -58,6 +58,8 @@ export function useWorkspace() {
   const [state, render] = useState(initial);
   const ref = useRef(state);
   const epoch = useRef(0);
+  const changes = useRef(0);
+  const reconciledChanges = useRef(0);
   const alive = useRef(true);
   function patch(p: Partial<State>) {
     ref.current = { ...ref.current, ...p };
@@ -96,6 +98,7 @@ export function useWorkspace() {
   }
   async function sync(discard = false) {
     const token = ++epoch.current;
+    const observedChanges = changes.current;
     const [status, view] = await Promise.allSettled([
       api.status(),
       api.models(),
@@ -105,6 +108,9 @@ export function useWorkspace() {
     else error(status.reason);
     if (view.status === "fulfilled") acceptView(view.value, discard);
     else patch({ viewError: errorText(view.reason) });
+    // Only an accepted read consumes notifications. A write can invalidate an
+    // idle read; notifications arriving during this read require another pass.
+    reconciledChanges.current = observedChanges;
   }
   async function operation(label: string, fn: () => Promise<void>) {
     if (ref.current.busy) return false;
@@ -120,6 +126,9 @@ export function useWorkspace() {
       await sync();
       return false;
     } finally {
+      while (alive.current && reconciledChanges.current < changes.current) {
+        await sync();
+      }
       patch({ busy: null });
     }
   }
@@ -218,6 +227,7 @@ export function useWorkspace() {
     void sync();
     const offs = [
       listen("status-changed", () => {
+        ++changes.current;
         if (!ref.current.busy) void sync();
       }),
       listen<{ ok: boolean; message: string; source: string }>(

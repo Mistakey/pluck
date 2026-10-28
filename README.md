@@ -19,7 +19,7 @@
 
 ## 项目状态
 
-首版已在 Windows 上可用：通过配置窗口和托盘管理 Claude Code CLI 的用户级原生配置，切换官方与 CPA，并把 CPA 的模型列表接入 CLI 原生 `/model` 菜单。Skill 管理属于下一阶段。
+Windows 0.2.0 采用 Claude Code 单页配置界面：通过配置窗口和托盘管理 Claude Code CLI 的用户级原生配置，切换官方与 CPA，并把 CPA 的模型列表接入 CLI 原生 `/model` 菜单。Skill 管理属于下一阶段。
 
 采用 Tauri 2、Rust、React 和 TypeScript；Windows 是首个交付平台，不是项目永久的平台限制。首版规格关联 Forge 任务 `pluck-ehl`，任务状态由 Forge 维护。
 
@@ -29,16 +29,20 @@
 
 ## 使用
 
-运行安装包 `Pluck_0.1.0_x64-setup.exe`，或直接运行 `pluck.exe`（需要系统自带的 WebView2 运行时）。构建方法见下文。
+直接运行 Windows x64 免安装版 `pluck.exe`（Windows 10/11，需要系统 WebView2 运行时）。构建方法见下文；本轮不提供运行时安装向导。
 
-首版 Windows x64 产物可从 [Forge 交付材料](https://192.168.30.11:3674/board/#/materials/727330ab27ea9d01e14036b19cad6889) 的附件下载，校验值见 [首版验证记录](docs/verification/first-release.md)。
+新版产物、SHA-256 与验证记录见 [单页界面交付](docs/verification/single-page.md)。
 
-1. 在“CPA 连接”中填写 CPA 地址（例如 `http://127.0.0.1:8317`）和 Key，保存。
-2. 在“CPA 模型”中获取模型列表，勾选要放进 CLI `/model` 菜单的模型，按需选择默认模型、子代理默认模型和 opus / sonnet / haiku 别名映射，保存。
-3. 在窗口或托盘中切换到 CPA；切回官方时沿用 Claude Code 自己的登录。
-4. 切换后重新打开 Claude Code CLI。
+1. Claude Code 页内点“配置连接”（或“配置 CPA”），在弹窗填写地址和 Key 并保存；已有 Key 不回显明文，留空沿用。保存连接不自动启用 CPA，取消只放弃本次连接输入。
+2. 获取模型列表，搜索名称/ID 或筛选“已选”，勾选 CLI `/model` 菜单项；右侧选择默认和子代理模型，在折叠的“别名映射”中配置 opus / sonnet / haiku，保存配置。列表外 ID 会继续显示；全选不会丢掉已选的列表外 ID，清空是明确清除菜单选择。
+3. 在本页明确切换到 CPA；官方模式也能编辑 CPA 预设，切回官方时沿用 Claude Code 自己的登录。切换后重新打开 Claude Code CLI。
+4. 配置位置、凭据是否存在、环境变量和原生优先级说明集中在左下角“设置”；往返不丢模型草稿。
 
-关闭窗口后 Pluck 留在托盘并释放配置界面：右键菜单显示当前用户级默认模式和默认模型，可切换模式、打开窗口或退出；左键单击重新创建配置窗口。关闭结束本次编辑，未保存的修改会放弃；想稍后继续编辑可最小化窗口。`pluck.exe --hidden` 只启动托盘，不创建 WebView。
+模型刷新只更新列表。未编辑时窗口跟随已保存值；编辑期间的相关外部变化会保留草稿并提示，不能用旧草稿覆盖新配置。连接弹窗同样保留编辑并提示变化，需要明确重新载入后再保存。失败信息保留在当前上下文中，可关闭提示或修复后重试。
+
+窗口内切换模式或关闭原生窗口前，有未保存修改时可保存后继续、放弃后继续或继续编辑。保存失败或冲突会停止原动作并保留输入。连接弹窗支持 Escape 取消、Tab 循环和关闭后返回焦点；写入期间不接受重复提交或 Escape 丢弃。
+
+确认关闭后 Pluck 留在托盘并释放 WebView；左键单击托盘重新创建配置窗口并读取已保存值，右键可查看状态、切换模式或退出。最小化保留当前编辑。托盘操作仍独立于窗口；托盘切换或外部配置更新会按上述规则与窗口草稿协调。显式退出结束后台。`pluck.exe --hidden` 只启动托盘，不创建 WebView。
 
 ### Pluck 修改什么
 
@@ -74,7 +78,8 @@ CPA 地址、Key、模型列表和各模式的模型快照保存在 `%APPDATA%\c
 ```powershell
 pnpm install
 pnpm tauri dev          # 开发运行
-pnpm tauri build        # 构建 src-tauri/target/release/pluck.exe 与 bundle/nsis 安装包
+pnpm tauri build --no-bundle # 构建免安装 src-tauri/target/release/pluck.exe
+pnpm tauri build            # 另行构建 NSIS 安装包
 ```
 
 ## 验证
@@ -82,10 +87,12 @@ pnpm tauri build        # 构建 src-tauri/target/release/pluck.exe 与 bundle/n
 ```powershell
 pnpm typecheck
 pnpm test:rust          # 日常回归：核心配置流程与必要失败保护，全程临时目录
+pnpm verify:ui          # 生产 UI 的无头布局/草稿/关闭边界与旧数据检查（需要 Edge）
 pnpm verify:cli         # 按需：配置映射或 Claude 升级后的原生菜单兼容检查
 pnpm measure:resources  # 按需：Windows release 后台与隐藏窗口的资源回收测量
 ```
 
+- `verify:ui` 构建生产前端和隔离服务桥接入口，在独立的无头 Edge 中验证真实组件；截图与行为报告写入 `.forge/tmp/ui`。故障/竞态用受控 IPC，旧版固定样本用实际 Rust 服务读写临时副本；它不操作桌面，也不代表原生窗口的视觉、流畅度与焦点体验。
 - `verify:cli` 需要已安装 Claude Code CLI（2.1.242 及以上支持 `modelPicker`）。它在临时目录和独立 PTY 中验证菜单、保存实际 ID、往返与新会话请求，不操作用户桌面，不读写真实 `~/.claude`；`--report 路径` 输出报告，`--keep` 保留隔离目录。
 - `measure:resources` 自动构建 release 测量入口，复用生产后台与窗口工厂，使用独立配置和 WebView 数据目录。窗口全程隐藏、不抢焦点、不移动鼠标；记录空闲及 5 次创建/关闭的进程、内存与 CPU，检查子进程是否回收。`--report 路径` 输出报告。
 - 窗口和托盘改动后的短人工检查见 [验证约定](docs/verification/checks.md)。不再保留自动控制用户鼠标、托盘或其他窗口的 GUI 脚本。历史首版报告留作当时产物的证据。

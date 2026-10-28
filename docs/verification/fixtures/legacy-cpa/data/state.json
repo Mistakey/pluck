@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "cpa": {
+    "baseUrl": "http://127.0.0.1:52245",
+    "apiKey": "isolated-legacy-key-1234"
+  },
+  "models": [
+    {
+      "id": "model-a",
+      "displayName": null
+    },
+    {
+      "id": "model-b",
+      "displayName": null
+    }
+  ],
+  "modelsFetchedAt": 1793158762,
+  "snapshots": {
+    "official": {
+      "model": "opus"
+    },
+    "cpa": {
+      "model": "legacy-outside-list",
+      "modelPicker": {
+        "options": [
+          {
+            "model": "model-a",
+            "description": "CPA 模型"
+          },
+          {
+            "model": "legacy-outside-list",
+            "description": "CPA 模型"
+          }
+        ],
+        "replaceBuiltInOptions": true
+      },
+      "env": {
+        "CLAUDE_CODE_SUBAGENT_MODEL": "model-b",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "model-a",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "model-b",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "legacy-haiku"
+      }
+    }
+  }
+}

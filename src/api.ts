@@ -14,6 +14,7 @@ export interface Status {
   cpaConfigured: boolean;
   cpaBaseUrl: string | null;
   cpaKeyHint: string | null;
+  connectionRevision: string;
   model: string | null;
   subagentModel: string | null;
   aliases: { opus: string | null; sonnet: string | null; haiku: string | null };
@@ -53,7 +54,11 @@ export interface ModelView {
 export const api = {
   status: () => invoke<Status>("get_status"),
   switchMode: (mode: Mode) => invoke<OpResult>("switch_mode", { mode }),
-  saveCpa: (baseUrl: string, apiKey: string | null) => invoke<OpResult>("save_cpa", { baseUrl, apiKey }),
+  saveCpa: (baseUrl: string, apiKey: string | null, revision: string) =>
+    invoke<OpResult & { beforeModelRevision: string; modelView: ModelView }>(
+      "save_cpa",
+      { baseUrl, apiKey, revision },
+    ),
   models: () => invoke<ModelView>("get_models"),
   refreshModels: () => invoke<ModelView>("refresh_models"),
   saveModelConfig: (config: ModelConfig, revision: string) =>
@@ -61,5 +66,9 @@ export const api = {
 };
 
 export function errorText(e: unknown): string {
-  return typeof e === "string" ? e : e instanceof Error ? e.message : JSON.stringify(e);
+  return typeof e === "string"
+    ? e
+    : e instanceof Error
+      ? e.message
+      : JSON.stringify(e);
 }

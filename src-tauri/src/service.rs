@@ -55,6 +55,7 @@ pub struct Status {
     pub cpa_configured: bool,
     pub cpa_base_url: Option<String>,
     pub cpa_key_hint: Option<String>,
+    pub connection_revision: String,
     pub model: Option<String>,
     pub subagent_model: Option<String>,
     pub aliases: Aliases,
@@ -99,6 +100,27 @@ fn snapshot_revision(snapshot: &Option<Map<String, Value>>) -> String {
     format!("saved:{}", settings_file::revision_of(text.as_bytes()))
 }
 
+// UI baselines cover the model fields it edits. Unrelated settings and connection
+// edits do not make model drafts stale. The final file write still uses the full
+// loaded-file revision, preserving the atomic race protection in settings_file.
+fn live_model_revision(doc: &Map<String, Value>) -> String {
+    let fields = managed::extract_model_fields(doc);
+    format!("live:{}", settings_file::revision_of(Value::Object(fields).to_string().as_bytes()))
+}
+
+fn connection_revision(profile: &Option<CpaProfile>) -> String {
+    settings_file::revision_of(&serde_json::to_vec(profile).expect("连接可序列化"))
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionResult {
+    #[serde(flatten)]
+    pub result: OpResult,
+    pub before_model_revision: String,
+    pub model_view: ModelView,
+}
+
 fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
@@ -139,6 +161,7 @@ impl Service {
             cpa_configured: false,
             cpa_base_url: None,
             cpa_key_hint: None,
+            connection_revision: String::new(),
             model: None,
             subagent_model: None,
             aliases: Aliases { opus: None, sonnet: None, haiku: None },
@@ -157,6 +180,7 @@ impl Service {
                 return s;
             }
         };
+        s.connection_revision = connection_revision(&st.cpa);
         if let Some(p) = &st.cpa {
             s.cpa_configured = true;
             s.cpa_base_url = Some(p.base_url.clone());
@@ -217,9 +241,11 @@ impl Service {
         }
         let connection = match target {
             Mode::Cpa => {
-                let p = st.state.cpa.clone().ok_or_else(|| {
-                    Error::Refused("尚未保存 CPA 地址和 Key，请先在配置窗口中填写。".into())
-                })?;
+                let p = st
+                    .state
+                    .cpa
+                    .clone()
+                    .ok_or_else(|| Error::Refused("尚未保存 CPA 地址和 Key，请先在配置窗口中填写。".into()))?;
                 Some((p.base_url, p.api_key))
             }
             Mode::Official => None,
@@ -229,20 +255,20 @@ impl Service {
         self.store.save(&mut st)?;
 
         let fields = st.state.snapshots.get(&target).cloned().unwrap_or_default();
-        let doc = managed::apply(
-            &loaded.doc,
-            &fields,
-            connection.as_ref().map(|(u, k)| (u.as_str(), k.as_str())),
-        );
+        let doc = managed::apply(&loaded.doc, &fields, connection.as_ref().map(|(u, k)| (u.as_str(), k.as_str())));
         settings_file::save(&loaded, &doc)?;
         Ok(self.done(format!("已切换到{}模式。{RELAUNCH_HINT}", target.label())))
     }
 
     /// 保存 CPA 连接。`api_key` 为空时沿用已保存的 Key。CPA 正在使用时同步更新实时文件。
-    pub fn save_cpa(&self, base_url: &str, api_key: Option<&str>) -> Result<OpResult> {
+    pub fn save_cpa(&self, base_url: &str, api_key: Option<&str>, revision: &str) -> Result<ConnectionResult> {
         let _g = self.guard();
+        let before_model_revision = self.model_view_unlocked()?.revision;
         let url = cpa::validate_base_url(base_url)?;
         let mut st = self.store.load()?;
+        if revision != connection_revision(&st.state.cpa) {
+            return Err(Error::Refused("CPA 连接已在别处更新，请重新载入连接后再保存。输入已保留。".into()));
+        }
         let key = match api_key.map(str::trim).filter(|k| !k.is_empty()) {
             Some(k) => k.to_string(),
             None => st
@@ -279,28 +305,32 @@ impl Service {
                 }
                 return Err(e);
             }
-            return Ok(self.done(format!("CPA 连接已保存，并已更新当前用户配置。{RELAUNCH_HINT}")));
+            return Ok(ConnectionResult {
+                result: self.done(format!("CPA 连接已保存，并已更新当前用户配置。{RELAUNCH_HINT}")),
+                before_model_revision,
+                model_view: self.model_view_unlocked()?,
+            });
         }
         self.store.save(&mut st)?;
-        Ok(self.done("CPA 连接已保存，切换到 CPA 时使用。"))
+        Ok(ConnectionResult {
+            result: self.done("CPA 连接已保存，切换到 CPA 时使用。"),
+            before_model_revision,
+            model_view: self.model_view_unlocked()?,
+        })
     }
 
     /// 获取模型列表。成功才替换本机列表；失败时原列表与配置不变。
     pub fn refresh_models(&self) -> Result<ModelView> {
         let profile = {
             let _g = self.guard();
-            self.store
-                .load()?
-                .state
-                .cpa
-                .ok_or_else(|| Error::Refused("尚未保存 CPA 地址和 Key。".into()))?
+            self.store.load()?.state.cpa.ok_or_else(|| Error::Refused("尚未保存 CPA 地址和 Key。".into()))?
         };
         let models = cpa::fetch_models(&profile.base_url, &profile.api_key)?;
         {
             let _g = self.guard();
             let mut st = self.store.load()?;
-            if st.state.cpa.as_ref().map(|p| p.base_url.as_str()) != Some(profile.base_url.as_str()) {
-                return Err(Error::Refused("获取期间 CPA 地址已更改，请重新获取。".into()));
+            if st.state.cpa.as_ref().map(|p| (&p.base_url, &p.api_key)) != Some((&profile.base_url, &profile.api_key)) {
+                return Err(Error::Refused("获取期间 CPA 连接已更改，请重新获取。".into()));
             }
             st.state.models = models;
             st.state.models_fetched_at = Some(now_secs());
@@ -311,15 +341,15 @@ impl Service {
 
     pub fn model_view(&self) -> Result<ModelView> {
         let _g = self.guard();
+        self.model_view_unlocked()
+    }
+
+    fn model_view_unlocked(&self) -> Result<ModelView> {
         let st = self.store.load()?.state;
         let loaded = settings_file::load(&self.settings_path())?;
         let live = managed::detect(&loaded.doc, st.cpa.as_ref().map(|p| p.base_url.as_str())) == Detected::Cpa;
         let (fields, source, revision) = if live {
-            (
-                managed::extract_model_fields(&loaded.doc),
-                "live",
-                loaded.revision.clone().unwrap_or_default(),
-            )
+            (managed::extract_model_fields(&loaded.doc), "live", live_model_revision(&loaded.doc))
         } else {
             (st.snapshots.cpa.clone().unwrap_or_default(), "saved", snapshot_revision(&st.snapshots.cpa))
         };
@@ -340,7 +370,7 @@ impl Service {
         let cpa_url = st.state.cpa.as_ref().map(|p| p.base_url.clone());
         let live = managed::detect(&loaded.doc, cpa_url.as_deref()) == Detected::Cpa;
         if live {
-            if revision != loaded.revision.clone().unwrap_or_default() {
+            if revision != live_model_revision(&loaded.doc) {
                 return Err(Error::Conflict { path: self.settings_path() });
             }
         } else if revision != snapshot_revision(&st.state.snapshots.cpa) {

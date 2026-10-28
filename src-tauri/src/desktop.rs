@@ -12,7 +12,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, Webview
 
 use crate::error::Result;
 use crate::managed::{Mode, ModelConfig};
-use crate::service::{resolve_claude_dir, ModelView, OpResult, Service, Status};
+use crate::service::{resolve_claude_dir, ConnectionResult, ModelView, OpResult, Service, Status};
 
 const TRAY_ID: &str = "pluck-tray";
 
@@ -69,12 +69,27 @@ async fn switch_mode(app: AppHandle, state: State<'_, App>, mode: Mode) -> Resul
 }
 
 #[tauri::command]
-async fn save_cpa(app: AppHandle, state: State<'_, App>, base_url: String, api_key: Option<String>) -> Result<OpResult> {
+async fn save_cpa(
+    app: AppHandle,
+    state: State<'_, App>,
+    base_url: String,
+    api_key: Option<String>,
+    revision: String,
+) -> Result<ConnectionResult> {
     let s = state.service.clone();
-    let r = tauri::async_runtime::spawn_blocking(move || s.save_cpa(&base_url, api_key.as_deref()))
+    let r = tauri::async_runtime::spawn_blocking(move || s.save_cpa(&base_url, api_key.as_deref(), &revision))
         .await
         .expect("保存线程");
-    finish(&app, r)
+    match r {
+        Ok(value) => {
+            finish(&app, Ok(value.result.clone()))?;
+            Ok(value)
+        }
+        Err(e) => {
+            finish(&app, Err(e))?;
+            unreachable!()
+        }
+    }
 }
 
 #[tauri::command]
@@ -97,9 +112,8 @@ async fn save_model_config(
     revision: String,
 ) -> Result<OpResult> {
     let s = state.service.clone();
-    let r = tauri::async_runtime::spawn_blocking(move || s.save_model_config(&config, &revision))
-        .await
-        .expect("保存线程");
+    let r =
+        tauri::async_runtime::spawn_blocking(move || s.save_model_config(&config, &revision)).await.expect("保存线程");
     finish(&app, r)
 }
 
@@ -133,13 +147,7 @@ fn build_menu(app: &AppHandle, s: &Status) -> tauri::Result<Menu<tauri::Wry>> {
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, "to-official", "切换到官方", s.mode == "cpa", None::<&str>)?)?;
     let cpa_text = if s.cpa_configured { "切换到 CPA" } else { "切换到 CPA（未配置）" };
-    menu.append(&MenuItem::with_id(
-        app,
-        "to-cpa",
-        cpa_text,
-        s.mode == "official" && s.cpa_configured,
-        None::<&str>,
-    )?)?;
+    menu.append(&MenuItem::with_id(app, "to-cpa", cpa_text, s.mode == "official" && s.cpa_configured, None::<&str>)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     if let Some(l) = last {
         menu.append(&MenuItem::with_id(app, "last", format!("上次操作：{}", truncate(&l, 48)), false, None::<&str>)?)?;
@@ -150,7 +158,9 @@ fn build_menu(app: &AppHandle, s: &Status) -> tauri::Result<Menu<tauri::Wry>> {
 }
 
 fn refresh_tray(app: &AppHandle, s: &Status) {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else { return };
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
     if let Ok(menu) = build_menu(app, s) {
         let _ = tray.set_menu(Some(menu));
     }
@@ -270,8 +280,9 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } =
-                        event
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left, button_state: MouseButtonState::Up, ..
+                    } = event
                     {
                         show_window(tray.app_handle());
                     }

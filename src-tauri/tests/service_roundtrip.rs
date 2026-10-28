@@ -45,7 +45,7 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     let e = setup(existing_settings());
     let settings = e.claude.join("settings.json");
 
-    e.svc.save_cpa("http://127.0.0.1:18317/", Some("cpa-secret")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317/", Some("cpa-secret"), &e.svc.status().connection_revision).unwrap();
     let r = e.svc.switch(Mode::Cpa).unwrap();
     assert_eq!(r.status.mode, "cpa");
     let v = read(&settings);
@@ -76,7 +76,9 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     let r = e.svc.switch(Mode::Official).unwrap();
     assert_eq!(r.status.mode, "official");
     let v = read(&settings);
-    for k in ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL"] {
+    for k in
+        ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_SUBAGENT_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL"]
+    {
         assert!(v["env"].get(k).is_none(), "{k} 不应带回官方");
     }
     assert!(v.get("modelPicker").is_none());
@@ -122,7 +124,7 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
 #[test]
 fn model_config_saved_while_official_applies_on_switch() {
     let e = setup(json!({"theme": "dark"}));
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     let view = e.svc.model_view().unwrap();
     assert_eq!(view.source, "saved");
     let cfg = ModelConfig { default_model: Some("deepseek-v3".into()), ..Default::default() };
@@ -135,7 +137,7 @@ fn model_config_saved_while_official_applies_on_switch() {
 #[test]
 fn stale_window_revision_is_rejected() {
     let e = setup(json!({}));
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
     let rev = e.svc.model_view().unwrap().revision;
     let p = e.claude.join("settings.json");
@@ -152,7 +154,7 @@ fn stale_window_revision_is_rejected() {
 fn corrupt_or_invalid_settings_are_never_overwritten() {
     let e = setup(json!({}));
     let p = e.claude.join("settings.json");
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     let bad = "{ \"model\": \"x\", ";
     fs::write(&p, bad).unwrap();
     assert!(matches!(e.svc.switch(Mode::Cpa), Err(Error::Corrupt { .. })));
@@ -164,7 +166,7 @@ fn corrupt_or_invalid_settings_are_never_overwritten() {
 fn unknown_connection_is_refused() {
     let initial = json!({"env": {"ANTHROPIC_BASE_URL": "https://other-gateway.example", "ANTHROPIC_AUTH_TOKEN": "t"}});
     let e = setup(initial.clone());
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     let p = e.claude.join("settings.json");
     let before = fs::read(&p).unwrap();
     assert!(matches!(e.svc.switch(Mode::Official), Err(Error::Refused(_))));
@@ -178,7 +180,7 @@ fn windows_crlf_bom_file_keeps_format_after_switch() {
     let e = setup(json!({}));
     let p = e.claude.join("settings.json");
     fs::write(&p, "\u{feff}{\r\n  \"theme\": \"dark\"\r\n}\r\n").unwrap();
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
     let bytes = fs::read(&p).unwrap();
     assert!(bytes.starts_with(b"\xEF\xBB\xBF"));
@@ -191,9 +193,9 @@ fn windows_crlf_bom_file_keeps_format_after_switch() {
 #[test]
 fn changing_cpa_while_active_updates_connection_only() {
     let e = setup(json!({"theme": "dark"}));
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k1")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k1"), &e.svc.status().connection_revision).unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
-    e.svc.save_cpa("http://127.0.0.1:18318", None).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18318", None, &e.svc.status().connection_revision).unwrap();
     let v = read(&e.claude.join("settings.json"));
     assert_eq!(v["env"]["ANTHROPIC_BASE_URL"], "http://127.0.0.1:18318");
     assert_eq!(v["env"]["ANTHROPIC_AUTH_TOKEN"], "k1");
@@ -221,11 +223,12 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
     let e = setup(json!({"theme": "dark"}));
     let data = e._root.path().join("pluck-data").join("state.json");
     let p = e.claude.join("settings.json");
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k1")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k1"), &e.svc.status().connection_revision).unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
     // 已有成功获取的模型列表与时间（直接写入本机数据，等同此前一次获取）。
     let mut state = read(&data);
-    state["models"] = json!([{"id": "gpt-5.1-codex", "displayName": null}, {"id": "qwen3-coder-plus", "displayName": "Qwen3"}]);
+    state["models"] =
+        json!([{"id": "gpt-5.1-codex", "displayName": null}, {"id": "qwen3-coder-plus", "displayName": "Qwen3"}]);
     state["modelsFetchedAt"] = json!(123456);
     fs::write(&data, serde_json::to_string_pretty(&state).unwrap()).unwrap();
     let list_kept = |svc: &Service| {
@@ -237,7 +240,7 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
     // 本机数据不可写。
     let settings_before = fs::read(&p).unwrap();
     set_readonly(&data, true);
-    let r = e.svc.save_cpa("http://127.0.0.1:18318", None);
+    let r = e.svc.save_cpa("http://127.0.0.1:18318", None, &e.svc.status().connection_revision);
     set_readonly(&data, false);
     assert!(matches!(r, Err(Error::Write { .. })), "{r:?}");
     assert_eq!(fs::read(&p).unwrap(), settings_before, "用户配置不应先被改写");
@@ -247,7 +250,7 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
 
     // 用户配置不可写：本机数据恢复为原地址与原列表。
     set_readonly(&p, true);
-    let r = e.svc.save_cpa("http://127.0.0.1:18318", None);
+    let r = e.svc.save_cpa("http://127.0.0.1:18318", None, &e.svc.status().connection_revision);
     set_readonly(&p, false);
     assert!(matches!(r, Err(Error::Write { .. })), "{r:?}");
     assert_eq!(fs::read(&p).unwrap(), settings_before);
@@ -264,9 +267,11 @@ fn changing_active_cpa_is_consistent_when_either_file_fails() {
 fn stale_snapshot_draft_cannot_overwrite_cli_saved_model() {
     let e = setup(json!({"theme": "dark"}));
     let p = e.claude.join("settings.json");
-    e.svc.save_cpa("http://127.0.0.1:18317", Some("k")).unwrap();
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
     let v = e.svc.model_view().unwrap();
-    e.svc.save_model_config(&ModelConfig { default_model: Some("model-X".into()), ..Default::default() }, &v.revision).unwrap();
+    e.svc
+        .save_model_config(&ModelConfig { default_model: Some("model-X".into()), ..Default::default() }, &v.revision)
+        .unwrap();
 
     // 窗口在官方模式下读取（草稿基于 X）。
     let draft = e.svc.model_view().unwrap();
@@ -290,9 +295,137 @@ fn stale_snapshot_draft_cannot_overwrite_cli_saved_model() {
     assert_ne!(fresh.revision, draft.revision);
 
     // 用最新版本保存可以成功；切回 CPA 后为 Y。
-    e.svc.save_model_config(&ModelConfig { subagent_model: Some("z".into()), ..fresh.config.clone() }, &fresh.revision).unwrap();
+    e.svc
+        .save_model_config(&ModelConfig { subagent_model: Some("z".into()), ..fresh.config.clone() }, &fresh.revision)
+        .unwrap();
     e.svc.switch(Mode::Cpa).unwrap();
     let s = read(&p);
     assert_eq!(s["model"], "model-Y");
     assert_eq!(s["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "z");
+}
+#[test]
+fn connection_revision_checks_key_and_ignores_unrelated_model_edits() {
+    let e = setup(existing_settings());
+    let first = e.svc.status().connection_revision;
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("old-1234"), &first).unwrap();
+    let baseline = e.svc.status().connection_revision;
+    let view = e.svc.model_view().unwrap();
+    e.svc
+        .save_model_config(&ModelConfig { default_model: Some("custom-id".into()), ..view.config }, &view.revision)
+        .unwrap();
+    assert_eq!(e.svc.status().connection_revision, baseline);
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("new-1234"), &baseline).unwrap();
+    let before = fs::read(e.svc.store_path()).unwrap();
+    let err = e.svc.save_cpa("http://127.0.0.1:18318", None, &baseline).unwrap_err();
+    assert!(err.to_string().contains("别处更新"));
+    assert_eq!(before, fs::read(e.svc.store_path()).unwrap());
+}
+
+#[test]
+fn connection_write_reports_atomic_model_baselines_for_draft_rebase() {
+    let e = setup(existing_settings());
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("key"), &e.svc.status().connection_revision).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+    let view = e.svc.model_view().unwrap();
+    let r = e.svc.save_cpa("http://127.0.0.1:18318", None, &e.svc.status().connection_revision).unwrap();
+    assert_eq!(r.before_model_revision, view.revision);
+    assert_eq!(r.model_view.revision, view.revision);
+    assert_eq!(serde_json::to_value(&r.model_view.config).unwrap(), serde_json::to_value(&view.config).unwrap());
+    let mut doc = read(&e.claude.join("settings.json"));
+    doc["model"] = json!("external-model");
+    fs::write(e.claude.join("settings.json"), serde_json::to_string(&doc).unwrap()).unwrap();
+    let newer = e.svc.save_cpa("http://127.0.0.1:18319", None, &e.svc.status().connection_revision).unwrap();
+    assert_ne!(newer.before_model_revision, r.model_view.revision);
+    assert_eq!(newer.model_view.config.default_model.as_deref(), Some("external-model"));
+}
+#[test]
+fn fixed_old_version_sample_round_trips_without_replacing_key_or_snapshots() {
+    let root = tempfile::tempdir().unwrap();
+    let claude = root.path().join("claude");
+    let data = root.path().join("data");
+    fs::create_dir_all(&claude).unwrap();
+    fs::create_dir_all(&data).unwrap();
+    fs::write(
+        claude.join("settings.json"),
+        include_str!("../../docs/verification/fixtures/legacy-cpa/claude/settings.json"),
+    )
+    .unwrap();
+    fs::write(
+        claude.join(".credentials.json"),
+        include_str!("../../docs/verification/fixtures/legacy-cpa/claude/.credentials.json"),
+    )
+    .unwrap();
+    fs::write(data.join("state.json"), include_str!("../../docs/verification/fixtures/legacy-cpa/data/state.json"))
+        .unwrap();
+    let svc = Service::new(claude.clone(), &data);
+    let before = read(svc.store_path());
+    let credentials = fs::read(claude.join(".credentials.json")).unwrap();
+    let view = svc.model_view().unwrap();
+    assert_eq!(view.config.default_model.as_deref(), Some("legacy-outside-list"));
+    assert_eq!(view.models.len(), 2);
+    let changed = ModelConfig { default_model: Some("model-b".into()), ..view.config };
+    svc.save_model_config(&changed, &view.revision).unwrap();
+    svc.save_cpa(&svc.status().cpa_base_url.unwrap(), None, &svc.status().connection_revision).unwrap();
+    svc.switch(Mode::Official).unwrap();
+    svc.switch(Mode::Cpa).unwrap();
+    let after = read(svc.store_path());
+    assert_eq!(before["cpa"], after["cpa"]);
+    assert_eq!(before["models"], after["models"]);
+    assert_eq!(before["snapshots"]["official"], after["snapshots"]["official"]);
+    assert_eq!(credentials, fs::read(claude.join(".credentials.json")).unwrap());
+    let settings = read(&claude.join("settings.json"));
+    assert_eq!(settings["model"], "model-b");
+    assert_eq!(settings["env"]["KEEP_ME"], "preserved");
+    assert_eq!(settings["theme"], "dark");
+    assert_eq!(svc.model_view().unwrap().config.picker_models, vec!["model-a", "legacy-outside-list"]);
+}
+
+#[test]
+fn model_fetch_rejects_a_late_result_after_key_changes() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::mpsc;
+    let e = setup(existing_settings());
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    e.svc.save_cpa(&url, Some("first-key"), &e.svc.status().connection_revision).unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    std::thread::scope(|scope| {
+        scope.spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+            let mut request = [0; 4096];
+            stream.read(&mut request).unwrap();
+            started_tx.send(()).unwrap();
+            release_rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+            let body = r#"{"data":[{"id":"old-key-model"}]}"#;
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
+        });
+        let fetch = scope.spawn(|| e.svc.refresh_models());
+        started_rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+        e.svc.save_cpa(&url, Some("second-key"), &e.svc.status().connection_revision).unwrap();
+        release_tx.send(()).unwrap();
+        assert!(fetch.join().unwrap().is_err());
+    });
+    assert!(e.svc.model_view().unwrap().models.is_empty());
+}
+#[test]
+fn unrelated_settings_changes_do_not_stale_model_drafts_and_are_preserved() {
+    let e = setup(existing_settings());
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("key"), &e.svc.status().connection_revision).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+    let view = e.svc.model_view().unwrap();
+    let mut doc = read(&e.claude.join("settings.json"));
+    doc["theme"] = json!("light");
+    doc["env"]["NEW_UNRELATED"] = json!("keep-this");
+    fs::write(e.claude.join("settings.json"), doc.to_string()).unwrap();
+    assert_eq!(view.revision, e.svc.model_view().unwrap().revision);
+    e.svc
+        .save_model_config(&ModelConfig { default_model: Some("new-selection".into()), ..view.config }, &view.revision)
+        .unwrap();
+    let saved = read(&e.claude.join("settings.json"));
+    assert_eq!(saved["theme"], "light");
+    assert_eq!(saved["env"]["NEW_UNRELATED"], "keep-this");
+    assert_eq!(saved["model"], "new-selection");
 }

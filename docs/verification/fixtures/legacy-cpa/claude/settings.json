@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)"
+    ]
+  },
+  "env": {
+    "KEEP_ME": "preserved",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "model-b",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "model-a",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "model-b",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "legacy-haiku",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:52245",
+    "ANTHROPIC_AUTH_TOKEN": "isolated-legacy-key-1234"
+  },
+  "model": "legacy-outside-list",
+  "theme": "dark",
+  "modelPicker": {
+    "options": [
+      {
+        "model": "model-a",
+        "description": "CPA 模型"
+      },
+      {
+        "model": "legacy-outside-list",
+        "description": "CPA 模型"
+      }
+    ],
+    "replaceBuiltInOptions": true
+  }
+}

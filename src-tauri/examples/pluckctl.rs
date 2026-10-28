@@ -22,7 +22,16 @@ fn main() {
     let svc = Service::new(claude, &data);
     let out = match args.first().map(String::as_str) {
         Some("status") => Ok(serde_json::to_value(svc.status()).unwrap()),
-        Some("save-cpa") => svc.save_cpa(&args[1], Some(&args[2])).map(|r| serde_json::to_value(r).unwrap()),
+        Some("save-cpa") => svc
+            .save_cpa(&args[1], Some(&args[2]), &svc.status().connection_revision)
+            .map(|r| serde_json::to_value(r).unwrap()),
+        Some("save-connection") => {
+            svc.save_cpa(&args[1], Some(&args[2]), &args[3]).map(|r| serde_json::to_value(r).unwrap())
+        }
+        Some("save-models") => {
+            let cfg: ModelConfig = serde_json::from_str(&args[1]).expect("ModelConfig JSON");
+            svc.save_model_config(&cfg, &args[2]).map(|r| serde_json::to_value(r).unwrap())
+        }
         Some("switch") => {
             let mode = if args[1] == "cpa" { Mode::Cpa } else { Mode::Official };
             svc.switch(mode).map(|r| serde_json::to_value(r).unwrap())

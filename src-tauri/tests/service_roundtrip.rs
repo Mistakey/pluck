@@ -34,7 +34,7 @@ fn existing_settings() -> Value {
         "permissions": {"allow": ["Bash(git status)"], "deny": []},
         "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "echo done"}]}]},
         "enabledPlugins": {"forge@local": true},
-        "env": {"MY_UNKNOWN_VAR": "keep", "ENABLE_TOOL_SEARCH": "true"},
+        "env": {"MY_UNKNOWN_VAR": "keep", "ENABLE_TOOL_SEARCH": "true", "CLAUDE_CODE_AUTO_MODE_MODEL": "claude-sonnet-4-6"},
         "model": "opus",
         "theme": "dark"
     })
@@ -52,6 +52,7 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     assert_eq!(v["env"]["ANTHROPIC_BASE_URL"], "http://127.0.0.1:18317");
     assert_eq!(v["env"]["ANTHROPIC_AUTH_TOKEN"], "cpa-secret");
     assert!(v.get("model").is_none(), "官方模式的模型不应带到 CPA");
+    assert!(v["env"].get("CLAUDE_CODE_AUTO_MODE_MODEL").is_none());
 
     // 窗口设置 CPA 默认模型 X 与菜单。
     let view = e.svc.model_view().unwrap();
@@ -59,6 +60,7 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     let cfg = ModelConfig {
         default_model: Some("gpt-5.1-codex".into()),
         subagent_model: Some("qwen3-coder-plus".into()),
+        auto_mode_model: Some("deepseek-v3.2".into()),
         alias_haiku: Some("qwen3-coder-plus".into()),
         picker_models: vec!["gpt-5.1-codex".into(), "qwen3-coder-plus".into()],
         replace_built_in: true,
@@ -83,24 +85,28 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     }
     assert!(v.get("modelPicker").is_none());
     assert_eq!(v["model"], "opus", "官方模式恢复自己的最新已保存值");
+    assert_eq!(v["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"], "claude-sonnet-4-6");
     assert_eq!(v["laterAddedField"], json!({"x": 1}));
     assert_eq!(v["env"]["LATER_VAR"], "1");
 
     // 官方模式下 CLI 又保存了新模型。
     let mut v = read(&settings);
     v["model"] = json!("sonnet");
+    v["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"] = json!("claude-sonnet-5");
     fs::write(&settings, serde_json::to_string_pretty(&v).unwrap()).unwrap();
 
     e.svc.switch(Mode::Cpa).unwrap();
     let v = read(&settings);
     assert_eq!(v["model"], "qwen3-coder-plus", "CPA 保留 CLI 保存的 Y");
     assert_eq!(v["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "qwen3-coder-plus");
+    assert_eq!(v["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"], "deepseek-v3.2");
     assert_eq!(v["modelPicker"]["options"][0]["model"], "gpt-5.1-codex");
     assert_eq!(v["modelPicker"]["replaceBuiltInOptions"], true);
 
     e.svc.switch(Mode::Official).unwrap();
     let v = read(&settings);
     assert_eq!(v["model"], "sonnet");
+    assert_eq!(v["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"], "claude-sonnet-5");
 
     // 未管理字段在整个往返中保持原值。
     let orig = existing_settings();
@@ -119,6 +125,7 @@ fn round_trip_keeps_latest_cli_saved_models_and_other_settings() {
     let saved = svc2.model_view().unwrap();
     assert_eq!(saved.source, "saved");
     assert_eq!(saved.config.default_model.as_deref(), Some("qwen3-coder-plus"));
+    assert_eq!(saved.config.auto_mode_model.as_deref(), Some("deepseek-v3.2"));
 }
 
 #[test]
@@ -148,6 +155,34 @@ fn stale_window_revision_is_rejected() {
     let r = e.svc.save_model_config(&ModelConfig { default_model: Some("other".into()), ..Default::default() }, &rev);
     assert!(matches!(r, Err(Error::Conflict { .. })));
     assert_eq!(fs::read(&p).unwrap(), before);
+}
+
+#[test]
+fn approval_only_edits_in_live_and_saved_fields_invalidate_drafts() {
+    let e = setup(json!({}));
+    e.svc.save_cpa("http://127.0.0.1:18317", Some("k"), &e.svc.status().connection_revision).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+    let view = e.svc.model_view().unwrap();
+    let p = e.claude.join("settings.json");
+    let mut doc = read(&p);
+    doc["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"] = json!("external/full-id");
+    fs::write(&p, doc.to_string()).unwrap();
+    assert!(matches!(e.svc.save_model_config(&view.config, &view.revision), Err(Error::Conflict { .. })));
+    e.svc.switch(Mode::Official).unwrap();
+    let saved = e.svc.model_view().unwrap();
+    assert_eq!(saved.config.auto_mode_model.as_deref(), Some("external/full-id"));
+    e.svc.save_model_config(
+        &ModelConfig { auto_mode_model: Some("new/full-id".into()), ..saved.config.clone() },
+        &saved.revision,
+    ).unwrap();
+    assert!(e.svc.save_model_config(&saved.config, &saved.revision).is_err());
+    // Clearing is also a saved change, and must remove the native env field on switch.
+    let fresh = e.svc.model_view().unwrap();
+    e.svc.save_model_config(
+        &ModelConfig { auto_mode_model: None, ..fresh.config }, &fresh.revision,
+    ).unwrap();
+    e.svc.switch(Mode::Cpa).unwrap();
+    assert!(read(&p)["env"].get("CLAUDE_CODE_AUTO_MODE_MODEL").is_none());
 }
 
 #[test]
@@ -362,8 +397,13 @@ fn fixed_old_version_sample_round_trips_without_replacing_key_or_snapshots() {
     let credentials = fs::read(claude.join(".credentials.json")).unwrap();
     let view = svc.model_view().unwrap();
     assert_eq!(view.config.default_model.as_deref(), Some("legacy-outside-list"));
+    assert_eq!(view.config.auto_mode_model, None, "旧快照和实时文件未指定审批模型");
     assert_eq!(view.models.len(), 2);
-    let changed = ModelConfig { default_model: Some("model-b".into()), ..view.config };
+    let changed = ModelConfig {
+        default_model: Some("model-b".into()),
+        auto_mode_model: Some("model-a".into()),
+        ..view.config
+    };
     svc.save_model_config(&changed, &view.revision).unwrap();
     svc.save_cpa(&svc.status().cpa_base_url.unwrap(), None, &svc.status().connection_revision).unwrap();
     svc.switch(Mode::Official).unwrap();
@@ -375,6 +415,7 @@ fn fixed_old_version_sample_round_trips_without_replacing_key_or_snapshots() {
     assert_eq!(credentials, fs::read(claude.join(".credentials.json")).unwrap());
     let settings = read(&claude.join("settings.json"));
     assert_eq!(settings["model"], "model-b");
+    assert_eq!(settings["env"]["CLAUDE_CODE_AUTO_MODE_MODEL"], "model-a");
     assert_eq!(settings["env"]["KEEP_ME"], "preserved");
     assert_eq!(settings["theme"], "dark");
     assert_eq!(svc.model_view().unwrap().config.picker_models, vec!["model-a", "legacy-outside-list"]);

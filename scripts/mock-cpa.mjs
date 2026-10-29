@@ -4,6 +4,7 @@
 //   node scripts/mock-cpa.mjs [--port 28317] [--key test-key] [--log path.jsonl]
 //
 // 切换列表行为：GET /__set?models=ok|error|invalid|empty|slow
+// 自动审批验证：GET /__set?approval=true，主请求发出本地 POST 工具调用，classifier 返回允许。
 // 日志只记录路径、模型 ID 和鉴权是否匹配，不记录 Key。
 import http from "node:http";
 import fs from "node:fs";
@@ -21,6 +22,7 @@ const MODELS = [
   { id: "deepseek-v3.2", object: "model", owned_by: "cpa" },
 ];
 let modelsMode = "ok";
+let approvalMode = args.approval === "true";
 
 function log(entry) {
   const line = JSON.stringify({ t: new Date().toISOString(), ...entry });
@@ -52,6 +54,7 @@ const server = http.createServer((req, res) => {
   req.on("end", () => {
     if (url.pathname === "/__set") {
       modelsMode = url.searchParams.get("models") ?? "ok";
+      if (url.searchParams.has("approval")) approvalMode = url.searchParams.get("approval") === "true";
       log({ path: "/__set", modelsMode });
       return send(res, 200, { modelsMode });
     }
@@ -70,10 +73,24 @@ const server = http.createServer((req, res) => {
       try {
         body = JSON.parse(raw || "{}");
       } catch {}
-      log({ path: url.pathname, auth, model: body.model, stream: !!body.stream });
+      const approval = approvalMode;
+      const classifier = approval && JSON.stringify(body.system ?? "").includes("security monitor");
+      log({ path: url.pathname, auth, model: body.model, stream: !!body.stream, ...(approval ? { classifier } : {}) });
       if (!auth) return send(res, 401, { error: { type: "authentication_error", message: "invalid key" } });
       if (url.pathname === "/v1/messages/count_tokens") return send(res, 200, { input_tokens: 12 });
-      const text = `mock reply from ${body.model}`;
+      // CLI chooses XML block or numeric severity output by classifier model.
+      const text = classifier
+        ? JSON.stringify(body).includes("<severity>") ? "<severity>0</severity>" : "<block>no</block>"
+        : `mock reply from ${body.model}`;
+      const needsTool = approval && !classifier && !body.messages?.some((m) =>
+        Array.isArray(m.content) && m.content.some((c) => c.type === "tool_result"));
+      const content = needsTool
+        ? { type: "tool_use", id: "tool_mock_approval", name: "Bash", input: {
+            command: `curl -X POST http://127.0.0.1:${port}/approval-proof`,
+            description: "Send an isolated local approval verification request",
+          } }
+        : { type: "text", text };
+      const stopReason = needsTool ? "tool_use" : "end_turn";
       const id = `msg_mock_${Date.now()}`;
       const usage = { input_tokens: 12, output_tokens: 6 };
       if (!body.stream) {
@@ -82,20 +99,24 @@ const server = http.createServer((req, res) => {
           type: "message",
           role: "assistant",
           model: body.model,
-          content: [{ type: "text", text }],
-          stop_reason: "end_turn",
+          content: [content],
+          stop_reason: stopReason,
           stop_sequence: null,
           usage,
         });
       }
       return sse(res, [
         ["message_start", { type: "message_start", message: { id, type: "message", role: "assistant", model: body.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 12, output_tokens: 1 } } }],
-        ["content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }],
-        ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } }],
+        ["content_block_start", { type: "content_block_start", index: 0, content_block: needsTool ? { ...content, input: {} } : { type: "text", text: "" } }],
+        ["content_block_delta", { type: "content_block_delta", index: 0, delta: needsTool ? { type: "input_json_delta", partial_json: JSON.stringify(content.input) } : { type: "text_delta", text } }],
         ["content_block_stop", { type: "content_block_stop", index: 0 }],
-        ["message_delta", { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 6 } }],
+        ["message_delta", { type: "message_delta", delta: { stop_reason: stopReason, stop_sequence: null }, usage: { output_tokens: 6 } }],
         ["message_stop", { type: "message_stop" }],
       ]);
+    }
+    if (url.pathname === "/approval-proof" && approvalMode) {
+      log({ path: url.pathname, method: req.method });
+      return send(res, 200, { approved: true });
     }
     log({ path: url.pathname, method: req.method, auth, unhandled: true });
     send(res, 404, { error: { type: "not_found_error", message: url.pathname } });

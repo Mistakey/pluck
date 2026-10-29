@@ -506,6 +506,12 @@ small {
   align-items: center;
   margin-bottom: 12px;
 }
+.approval-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--secondary);
+  margin-bottom: 24px;
+}
 .field {
   display: flex;
   flex-direction: column;

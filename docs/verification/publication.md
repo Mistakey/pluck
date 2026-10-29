@@ -11,4 +11,12 @@
 
 ## 执行记录
 
-0.2.0 首次正式构建与发布由[手动工作流](https://github.com/Mistakey/pluck/actions/runs/40859730527)执行；0.2.1 签名候选由[候选构建](https://github.com/Mistakey/pluck/actions/runs/40860428762)执行。实际结果及安装证据在验证完成后补齐，当前不将构建中或排队中的运行视为发布/升级成功。
+0.2.0 首次正式构建与发布由[手动工作流](https://github.com/Mistakey/pluck/actions/runs/40859730527)执行，全部步骤成功，2026-10-29 10:54:25 UTC 公开。该运行通过 Rust 32 项、生产 UI 38 项、真实后台更新探针、发布 3 项和实际安装包标准验签；最后才将完整 draft 设为 latest。
+
+| 版本 | 源码提交 | 安装包 SHA-256 |
+| --- | --- | --- |
+| 0.2.0 | `1b0fab34f69ce0d8e85a7f2c09fd2e10277515c8` | `78c0cf31b234b36251c6f3646014d1b1468e8158ddc032b827fb6331c9d48f19` |
+
+[0.2.0 安装包](https://github.com/Mistakey/pluck/releases/download/v0.2.0/Pluck_0.2.0_x64-setup.exe)、[五件套校验清单](https://github.com/Mistakey/pluck/releases/download/v0.2.0/SHA256SUMS.txt)和[构建提交与摘要](https://github.com/Mistakey/pluck/releases/download/v0.2.0/build-info.json)均公开可访问。本次使用无身份请求实际获取固定 latest 元数据和安装包，并将匿名下载字节与五件套摘要逐项核对，通过。维护机 Node 原生 fetch 首次直连 GitHub 超时，随后使用支持本机代理的 curl 完成匿名下载；未修改客户端联网逻辑。
+
+0.2.1 签名候选由[候选构建](https://github.com/Mistakey/pluck/actions/runs/40860428762)执行。真实安装升级结果在验证完成后补齐，当前不将构建中或排队中的运行视为升级成功。

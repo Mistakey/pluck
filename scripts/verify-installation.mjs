@@ -17,11 +17,12 @@ assert.match(process.env.BUILD_RUN ?? "", /^\d+$/);
 const repo = process.env.GITHUB_REPOSITORY;
 assert.equal(repo, "Mistakey/pluck");
 const previousVersion = "0.2.0";
+const diagnosticOnly = process.env.DIAGNOSE_ONLY === "true";
 const root = path.resolve(".forge/tmp/installation");
 assert(!fs.existsSync(root), "Use a fresh hosted VM for every verification");
 const evidence = path.join(root, "evidence");
 fs.mkdirSync(evidence, { recursive: true });
-const report = { startedAt: new Date().toISOString(), repository: repo, run: process.env.GITHUB_RUN_ID, candidateBuild: process.env.BUILD_RUN, checks: [] };
+const report = { startedAt: new Date().toISOString(), repository: repo, run: process.env.GITHUB_RUN_ID, candidateBuild: process.env.BUILD_RUN, diagnosticOnly, checks: [] };
 const save = () => fs.writeFileSync(path.join(evidence, "report.json"), JSON.stringify(report, null, 2));
 const record = (name, detail) => { report.checks.push({ name, at: new Date().toISOString(), ...detail }); save(); console.log(`PASS ${name}`); };
 const gh = args => execFileSync("gh", args, { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -45,7 +46,8 @@ function stopApps() {
   for (const p of processes()) process.kill(p.ProcessId);
 }
 function start(executable, args = []) {
-  const child = spawn(executable, args, { env, windowsHide: true, stdio: "ignore" });
+  const child = spawn(executable, args, { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  for (const stream of ["stdout", "stderr"]) child[stream].on("data", bytes => fs.appendFileSync(path.join(evidence, `process-${child.pid}-${stream}.log`), bytes));
   child.on("error", error => { report.processError = error.message; save(); });
   return child;
 }
@@ -114,15 +116,16 @@ try {
   baseline = Object.fromEntries(files.map(file => [path.basename(file), hash(file)]));
   record("downloaded signed real artifacts and copied legacy data", { previousInfo, candidateInfo, dataHashes: baseline });
 
+  const installedDir = path.join(process.env.LOCALAPPDATA, "Pluck");
+  const installedExe = path.join(installedDir, "pluck.exe");
+  const installer = path.join(previous, `Pluck_${previousVersion}_x64-setup.exe`);
+  if (!diagnosticOnly) {
   const portable = path.resolve(".forge/tmp/portable-source/src-tauri/target/release/pluck.exe");
   const portableProcess = start(portable, ["--hidden"]);
   await until("old portable process", () => processes().find(p => p.ProcessId === portableProcess.pid));
   await wait(3000);
   assert.equal(portableProcess.exitCode, null);
   const portableBefore = processes();
-  const installedDir = path.join(process.env.LOCALAPPDATA, "Pluck");
-  const installedExe = path.join(installedDir, "pluck.exe");
-  const installer = path.join(previous, `Pluck_${previousVersion}_x64-setup.exe`);
   const installExit = await install(installer, ["/S", `/D=${installedDir}`]);
   const afterInstall = processes();
   record("actual installer while the existing portable process runs", { portableCommit: "d6cca12", portableSha256: hash(portable), portableBefore, installExit, afterInstall });
@@ -150,7 +153,12 @@ try {
   record("portable single-instance forwarding observed", { portablePid: activePortable.pid, installedLaunchPid: second.pid, installedLaunchExit: second.exitCode });
   stopApps();
   await until("portable instance stopped", () => processes().length === 0);
+  } else {
+    assert.equal(await install(installer, ["/S", `/D=${installedDir}`]), 0);
+  }
   const installedProcess = start(installedExe);
+  await wait(3000);
+  record("installed process startup", { pid: installedProcess.pid, exitCode: installedProcess.exitCode, processes: processes(), dataHashes: preserved() });
   let page = await connect();
   const status = await invoke(page, "get_status");
   assert.equal(status.mode, "cpa");
@@ -158,8 +166,9 @@ try {
   assert.equal(before.currentVersion, previousVersion); assert.equal(before.installBlocked, null);
   const registry = ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress");
   report.beforeUpdate = { pid: installedProcess.pid, binarySha256: hash(installedExe), status: before, registry: JSON.parse(registry), processes: processes() };
-  record("portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), statusMode: status.mode, currentVersion: before.currentVersion });
+  record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), statusMode: status.mode, currentVersion: before.currentVersion });
 
+  if (!diagnosticOnly) {
   const notes = path.join(root, "notes.txt");
   fs.writeFileSync(notes, JSON.parse(fs.readFileSync(path.join(candidate, "latest.json"))).notes);
   // Use the production publication function and real GitHub API. Omit one uploaded asset to
@@ -199,9 +208,13 @@ try {
   const afterStatus = await invoke(page, "get_status"); assert.equal(afterStatus.mode, "cpa");
   report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
   record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
+  }
   report.finishedAt = new Date().toISOString(); report.passed = true; save();
 } catch (error) {
   report.passed = false; report.error = error.stack; save();
+  report.failureProcesses = processes();
+  report.webviewProcesses = JSON.parse(ps("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Object Name -Like '*webview*' | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine)"));
+  save();
   throw error;
 } finally {
   await browser?.close().catch(() => {});

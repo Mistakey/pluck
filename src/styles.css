@@ -664,6 +664,37 @@ small {
   overflow-wrap: anywhere;
   margin-top: 4px;
 }
+.release-notes {
+  font: inherit;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 192px;
+  overflow: auto;
+  padding: 12px;
+  margin: 16px 0;
+  background: var(--canvas);
+  border-radius: var(--radius);
+}
+.update-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.update-progress {
+  margin-top: 16px;
+}
+.update-progress progress {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.update-panel .update-error {
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
+.modal .update-panel {
+  margin-bottom: 24px;
+}
 .state-error {
   margin: 0 32px 12px;
   padding: 12px;

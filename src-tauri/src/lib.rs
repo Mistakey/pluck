@@ -4,6 +4,7 @@ pub mod managed;
 pub mod service;
 pub mod settings_file;
 pub mod store;
+pub mod updates;
 
 pub mod desktop;
 

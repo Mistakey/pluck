@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWorkspace } from "./useWorkspace";
 import type { ModelConfig, ModelInfo } from "./api";
+import { UpdatePanel } from "./UpdatePanel";
 
 function modelName(model: ModelInfo): string {
   return model.displayName?.trim() || model.id;
@@ -245,6 +246,7 @@ export default function App() {
         >
           <Icon name="settings" />
           设置
+          {w.updates?.version && <span className="dirty-dot" aria-label="发现新版本" />}
         </button>
       </aside>
       <main className="workspace" inert={w.editing || !!w.confirm}>
@@ -254,6 +256,7 @@ export default function App() {
         <div className="feedback">{alert}</div>
         {page === "settings" ? (
           <div className="settings-content">
+            <UpdatePanel status={w.updates} busy={!!w.busy} check={() => void w.checkUpdates()} install={() => w.request("update")} />
             <section>
               <h2>配置位置</h2>
               {[
@@ -271,7 +274,7 @@ export default function App() {
             </section>
             <section>
               <h2>关于</h2>
-              <p>Pluck · Claude Code 配置管理 · 0.2.0</p>
+              <p>Pluck · Claude Code 配置管理 · {w.updates?.currentVersion ?? "读取中…"}</p>
               <p>
                 官方模式使用 Claude Code 自身登录
                 {status?.credentialsPresent
@@ -595,6 +598,7 @@ export default function App() {
               </button>
             </div>
             {alert}
+            {w.updates?.version && <UpdatePanel compact status={w.updates} busy={!!w.busy} check={() => void w.checkUpdates()} install={() => w.request("update")} />}
             {connectionConflict && (
               <div className="conflict" role="alert">
                 <span>连接已在别处更新，输入已保留。</span>
@@ -686,6 +690,8 @@ export default function App() {
           <p>
             {w.confirm === "close"
               ? "关闭前是否保存本次修改？"
+              : w.confirm === "update"
+                ? "下载更新前，先处理模型与连接的修改。取消将继续编辑。"
               : "切换前，先处理本次修改。"}
           </p>
           <div className="modal-actions">
@@ -701,7 +707,7 @@ export default function App() {
               disabled={!!w.busy}
               onClick={() => void w.finish(false)}
             >
-              {w.confirm === "close" ? "放弃并关闭" : "放弃并切换"}
+              {w.confirm === "close" ? "放弃并关闭" : w.confirm === "update" ? "放弃并更新" : "放弃并切换"}
             </button>
             <button
               className="button primary"
@@ -712,6 +718,8 @@ export default function App() {
                 ? "保存中…"
                 : w.confirm === "close"
                   ? "保存并关闭"
+                  : w.confirm === "update"
+                    ? "保存并更新"
                   : "保存并切换"}
             </button>
           </div>

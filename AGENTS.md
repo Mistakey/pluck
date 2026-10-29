@@ -12,3 +12,4 @@
 - `pnpm tauri build` 运行期间不要执行 `pnpm add` / `pnpm install`，否则 `node_modules/.bin` 被替换导致构建结尾报错。
 - PowerShell 脚本含中文时保存为 UTF-8 BOM；字符串中不要用中文弯引号 `“”`，PowerShell 会把它当作字符串定界符。
 - 用 `Copy-Item` 把旧版本源文件换回或换出时会保留原修改时间，cargo 可能不重新编译而沿用旧产物；换文件后更新修改时间（或 `cargo clean -p pluck`）再测。
+- Windows 下使用 Tauri mock runtime 的集成测试也需要 Common Controls v6 清单；`build.rs` 为 tests 和 examples 链接同一份资源，否则进程启动会报 `STATUS_ENTRYPOINT_NOT_FOUND`。

@@ -1,0 +1,65 @@
+name: Release Windows x64
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable version, e.g. 0.3.0 (must match the selected main commit)'
+        required: true
+        type: string
+      notes:
+        description: 'Release notes shown in the application'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_NOTES_FILE: .forge/tmp/release-notes.md
+      UPDATER_PUBLIC_KEY: ${{ vars.UPDATER_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Validate version, notes and channel
+        env:
+          RELEASE_NOTES: ${{ inputs.notes }}
+        run: |
+          New-Item -ItemType Directory -Force .forge/tmp | Out-Null
+          [IO.File]::WriteAllText((Join-Path $PWD $env:RELEASE_NOTES_FILE), $env:RELEASE_NOTES, [Text.UTF8Encoding]::new($false))
+          node scripts/release.mjs prepare
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:rust
+      - run: pnpm verify:ui
+      - run: pnpm verify:updates
+      - run: pnpm test:release
+      - name: Build current-user installer and signed updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Missing TAURI_SIGNING_PRIVATE_KEY' }
+          pnpm tauri build --bundles nsis --config .forge/tmp/release/tauri.conf.json --ci
+      - run: node scripts/release.mjs metadata
+      - name: Verify artifact with the runtime updater
+        run: cargo run --example verify_update --manifest-path src-tauri/Cargo.toml -- .forge/tmp/release/artifacts/latest.json ".forge/tmp/release/artifacts/Pluck_$($env:RELEASE_VERSION)_x64-setup.exe"
+      - name: Upload draft, verify all assets, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release.mjs publish

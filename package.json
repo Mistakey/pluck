@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "verify:ui": "pnpm build && cargo build --example pluckctl --manifest-path src-tauri/Cargo.toml && node scripts/verify-ui.mjs",
+    "test:release": "node --test scripts/release.test.mjs",
+    "verify:updates": "cargo build --example updates_probe --manifest-path src-tauri/Cargo.toml && node scripts/verify-updates.mjs",
     "tauri": "tauri",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "mock-cpa": "node scripts/mock-cpa.mjs",

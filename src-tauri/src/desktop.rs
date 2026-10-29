@@ -9,10 +9,12 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_updater::UpdaterExt;
 
 use crate::error::Result;
 use crate::managed::{Mode, ModelConfig};
 use crate::service::{resolve_claude_dir, ConnectionResult, ModelView, OpResult, Service, Status};
+use crate::updates::{self, UpdateService, UpdateStatus};
 
 const TRAY_ID: &str = "pluck-tray";
 
@@ -21,6 +23,8 @@ struct App {
     /// 托盘上展示的最近一次操作结果。
     last_result: Mutex<Option<String>>,
     opening: AtomicBool,
+    updates: Arc<UpdateService>,
+    update_item: Mutex<Option<MenuItem<tauri::Wry>>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -117,6 +121,60 @@ async fn save_model_config(
     finish(&app, r)
 }
 
+#[tauri::command]
+fn get_update_status(state: State<'_, App>) -> UpdateStatus {
+    state.updates.status()
+}
+
+/// 供隔离的原生检查读取与窗口相同的常驻状态。
+pub fn update_status(app: &AppHandle) -> UpdateStatus {
+    app.state::<App>().updates.status()
+}
+
+fn notify_update(app: &AppHandle, status: &UpdateStatus) {
+    let _ = app.emit("update-changed", status);
+    if status.phase == "downloading" && status.downloaded > 0 { return; }
+    // 单独更新既有菜单项，不在每个下载分块上重建整个托盘。
+    let item = app.state::<App>().update_item.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    if let Some(item) = item {
+        let _ = item.set_text(updates::tray_text(status));
+    }
+}
+
+async fn check_updates_impl(app: &AppHandle) -> UpdateStatus {
+    let service = app.state::<App>().updates.clone();
+    let configured = app.config().plugins.0.get("updater").is_some_and(|c| {
+        c["pubkey"].as_str().is_some_and(|s| !s.trim().is_empty())
+            && c["endpoints"].as_array().is_some_and(|a| !a.is_empty())
+    });
+    let updater = if configured {
+        app.updater_builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())
+    } else {
+        Err("此构建尚未配置正式发布渠道，请安装正式发布的版本。".into())
+    };
+    service.check(updater, |s| notify_update(app, s)).await
+}
+
+#[tauri::command]
+async fn check_updates(app: AppHandle) -> UpdateStatus {
+    check_updates_impl(&app).await
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle, version: String) -> std::result::Result<UpdateStatus, String> {
+    let service = app.state::<App>().updates.clone();
+    service.install(&version, |s| notify_update(&app, s)).await
+}
+
+fn start_update_checks(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            check_updates_impl(&app).await;
+            tokio::time::sleep(Duration::from_secs(6 * 60 * 60)).await;
+        }
+    });
+}
+
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n {
         s.to_string()
@@ -153,6 +211,9 @@ fn build_menu(app: &AppHandle, s: &Status) -> tauri::Result<Menu<tauri::Wry>> {
         menu.append(&MenuItem::with_id(app, "last", format!("上次操作：{}", truncate(&l, 48)), false, None::<&str>)?)?;
     }
     menu.append(&MenuItem::with_id(app, "open", "打开配置窗口", true, None::<&str>)?)?;
+    let update_item = MenuItem::with_id(app, "updates", updates::tray_text(&state.updates.status()), true, None::<&str>)?;
+    menu.append(&update_item)?;
+    *state.update_item.lock().unwrap_or_else(|e| e.into_inner()) = Some(update_item);
     menu.append(&MenuItem::with_id(app, "quit", "退出 Pluck", true, None::<&str>)?)?;
     Ok(menu)
 }
@@ -240,6 +301,7 @@ fn watch_files(app: AppHandle, paths: Vec<PathBuf>) {
 /// 与资源测量共用的生产应用入口，不依赖配置窗口存活。
 pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if !args.iter().any(|arg| arg == "--hidden") {
                 show_window(app);
@@ -251,7 +313,10 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
             save_cpa,
             get_models,
             refresh_models,
-            save_model_config
+            save_model_config,
+            get_update_status,
+            check_updates,
+            install_update
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -264,7 +329,9 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
             let service = Arc::new(Service::new(claude_dir, &data_dir));
             let watched = vec![service.settings_path(), service.store_path().to_path_buf()];
             let status = service.status();
-            app.manage(App { service, last_result: Mutex::new(None), opening: AtomicBool::new(false) });
+            let installed = updates::is_current_user_installation();
+            let updates = Arc::new(UpdateService::new(app.package_info().version.to_string(), installed));
+            app.manage(App { service, last_result: Mutex::new(None), opening: AtomicBool::new(false), updates, update_item: Mutex::new(None) });
 
             let menu = build_menu(&handle, &status)?;
             TrayIconBuilder::with_id(TRAY_ID)
@@ -276,6 +343,11 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
                     "to-official" => tray_switch(app, Mode::Official),
                     "to-cpa" => tray_switch(app, Mode::Cpa),
                     "open" => show_window(app),
+                    "updates" => {
+                        show_window(app);
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move { check_updates_impl(&app).await; });
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -289,6 +361,7 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
                 })
                 .build(app)?;
             watch_files(handle, watched);
+            start_update_checks(app.handle().clone());
             Ok(())
         })
         .build(context)

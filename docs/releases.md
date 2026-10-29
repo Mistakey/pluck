@@ -10,6 +10,8 @@
 
 GitHub Actions 使用仓库 secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，公钥使用 repository variable `UPDATER_PUBLIC_KEY`。GitHub secrets 不能读回原文；迁移维护电脑前应将私钥及密码另作安全备份，DPAPI 文件只能由原 Windows 用户解密，单独拷贝它不能在其他电脑恢复。公钥和固定更新地址必须保持稳定。
 
+正式公钥的公开副本见 [`updater-public-key.txt`](updater-public-key.txt)，已与仓库变量逐字核对。它可用于独立验证签名，不能用于生成签名，不包含私钥。
+
 ## 首次部署
 
 1. 在首次公开前核对整个上传范围及 Git 历史，清除真实凭据、个人数据和私钥；再创建公开 GitHub 仓库并推送审核通过的 main。

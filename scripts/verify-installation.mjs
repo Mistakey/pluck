@@ -193,7 +193,9 @@ try {
     const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
     assert(!names(afterFailure).includes(`发现新版 ${version}`));
     record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
-    gh(["release", "delete", `v${version}`, "--repo", repo, "--cleanup-tag", "--yes"]);
+    // GitHub has not created a tag for this new draft. The production gate checked
+    // that no version tag existed before it; --cleanup-tag fails on that absent ref.
+    gh(["release", "delete", `v${version}`, "--repo", repo, "--yes"]);
     publish(candidate, version, repo, notes, gh);
     await until("new public release manifest", async () => (await latest()).version === version, 120000);
     await click(installedProcess.pid, installedExe, "^检查更新$");

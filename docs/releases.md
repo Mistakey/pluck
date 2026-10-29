@@ -60,7 +60,7 @@ cargo run --example verify_update --manifest-path src-tauri/Cargo.toml -- .forge
 
 手动工作流在 main 上按上述流程发布。在任务分支上运行时，同样执行回归、签名构建与标准验签，但将五件套和预期安装后二进制摘要保存为 Actions artifacts，供真实安装验证使用。
 
-选中同一生产源码的验证提交，再次手动执行 **Release Windows x64**，勾选 `verify_installation`，填写候选版本和成功候选构建的 `build_run`。该模式仅允许 GitHub 托管的临时 Windows VM，拒绝本机和 self-hosted runner；它不会使用签名私钥。`scripts/verify-installation.mjs` 校验候选构建、提交和生产树，下载已公开 0.2.0 及签名候选包，在独立 Claude/Pluck 目录复制旧固定样本，用旧源码实际构建的免安装版验证进程影响，再安装 0.2.0。
+保持任务分支停留在候选构建的同一提交，再次手动执行 **Release Windows x64**，勾选 `verify_installation`，填写候选版本和成功候选构建的 `build_run`。GitHub 工作流 token 不能为另一个工作流提交创建 Release；构建后修改验证流程需在新提交重新构建候选，不给 CI 配置个人令牌来绕过限制。该模式仅允许 GitHub 托管的临时 Windows VM，拒绝本机和 self-hosted runner；它不会使用签名私钥。`scripts/verify-installation.mjs` 校验候选构建、提交和生产树，下载已公开 0.2.0 及签名候选包，在独立 Claude/Pluck 目录复制旧固定样本，用旧源码实际构建的免安装版验证进程影响，再安装 0.2.0。
 
 验证使用生产发布函数向真实 GitHub 上传缺一件的草稿，确认回读失败、latest 和实际已安装客户端仍停留在 0.2.0；清理这次未公开草稿后，以完整五件套公开候选版。随后通过真实安装版窗口的“更新并重启”完成下载、验签、NSIS 替换及重启。记录安装路径、注册表版本、更新前后进程和程序摘要，并要求三个已有数据文件逐字节保持。`scripts/lib/installed-ui.ps1` 仅在临时托管 VM 中使用 Windows 无障碍接口读取指定 Pluck 进程的窗口并调用按钮；不使用鼠标、托盘或其他窗口，不更换生产 IPC 或安装器，也不在产品中加入调试入口。
 

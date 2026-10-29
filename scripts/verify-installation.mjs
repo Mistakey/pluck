@@ -133,13 +133,21 @@ try {
     assert.equal(await install(installer, ["/S", `/D=${installedDir}`]), 0);
   }
   assert(fs.existsSync(installedExe));
-  if (processes().some(p => p.ProcessId === portableProcess.pid)) {
-    const second = start(installedExe, ["--hidden"]);
-    await until("installed launch forwarded to portable single instance", () => second.exitCode !== null);
-    assert.equal(second.exitCode, 0);
-    assert(processes().some(p => p.ProcessId === portableProcess.pid));
-    record("portable single-instance forwarding observed", { portablePid: portableProcess.pid, installedLaunchPid: second.pid, installedLaunchExit: second.exitCode });
+  let activePortable = portableProcess;
+  if (!processes().some(p => p.ProcessId === activePortable.pid)) {
+    // Also cover an old portable shortcut launched after installation, even when NSIS
+    // successfully terminated the first old process during the install.
+    stopApps();
+    activePortable = start(portable, ["--hidden"]);
+    await until("portable instance restarted after installation", () => processes().some(p => p.ProcessId === activePortable.pid));
+    await wait(3000);
+    assert.equal(activePortable.exitCode, null);
   }
+  const second = start(installedExe, ["--hidden"]);
+  await until("installed launch forwarded to portable single instance", () => second.exitCode !== null);
+  assert.equal(second.exitCode, 0);
+  assert(processes().some(p => p.ProcessId === activePortable.pid));
+  record("portable single-instance forwarding observed", { portablePid: activePortable.pid, installedLaunchPid: second.pid, installedLaunchExit: second.exitCode });
   stopApps();
   await until("portable instance stopped", () => processes().length === 0);
   const installedProcess = start(installedExe);

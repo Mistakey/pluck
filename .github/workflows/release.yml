@@ -22,6 +22,9 @@ on:
         description: 'Only diagnose the installed 0.2.0 application; do not build portable or publish a candidate'
         type: boolean
         default: false
+      portable_run:
+        description: 'Reuse the fixed legacy binary from a previous successful portable-build step (optional)'
+        type: string
 
 permissions:
   actions: read
@@ -101,6 +104,7 @@ jobs:
       RELEASE_VERSION: ${{ inputs.version }}
       BUILD_RUN: ${{ inputs.build_run }}
       DIAGNOSE_ONLY: ${{ inputs.diagnose_only }}
+      LEGACY_BUILD_RUN: ${{ inputs.portable_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -113,20 +117,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: actions/checkout@v4
-        if: ${{ !inputs.diagnose_only }}
+        if: ${{ !inputs.diagnose_only && !inputs.portable_run }}
         with:
           ref: d6cca12db0d9b479297dbc269ac0c4c0dc0f99d1
           path: .forge/tmp/portable-source
       - uses: dtolnay/rust-toolchain@stable
-        if: ${{ !inputs.diagnose_only }}
+        if: ${{ !inputs.diagnose_only && !inputs.portable_run }}
       - name: Build the existing portable version without changing its source
-        if: ${{ !inputs.diagnose_only }}
+        if: ${{ !inputs.diagnose_only && !inputs.portable_run }}
         working-directory: .forge/tmp/portable-source
         run: |
           pnpm install --frozen-lockfile
           pnpm tauri build --no-bundle --ci
       - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.diagnose_only }}
+        if: ${{ !inputs.diagnose_only && !inputs.portable_run }}
         with:
           name: legacy-portable-d6cca12
           path: .forge/tmp/portable-source/src-tauri/target/release/pluck.exe

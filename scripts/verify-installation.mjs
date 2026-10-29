@@ -123,6 +123,13 @@ try {
   const installedExe = path.join(installedDir, "pluck.exe");
   const installer = path.join(previous, `Pluck_${previousVersion}_x64-setup.exe`);
   if (!diagnosticOnly) {
+  if (process.env.LEGACY_BUILD_RUN) {
+    assert.match(process.env.LEGACY_BUILD_RUN, /^\d+$/);
+    const legacyRun = JSON.parse(gh(["run", "view", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--json", "jobs,headSha"]));
+    assert(legacyRun.jobs.some(job => job.steps.some(step => step.name === "Build the existing portable version without changing its source" && step.conclusion === "success")));
+    gh(["run", "download", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--name", "legacy-portable-d6cca12", "--dir", path.resolve(".forge/tmp/portable-source/src-tauri/target/release")]);
+    report.legacyBuild = { run: process.env.LEGACY_BUILD_RUN, verifierCommit: legacyRun.headSha };
+  }
   const portable = path.resolve(".forge/tmp/portable-source/src-tauri/target/release/pluck.exe");
   const portableProcess = start(portable, ["--hidden"]);
   await until("old portable process", () => processes().find(p => p.ProcessId === portableProcess.pid));

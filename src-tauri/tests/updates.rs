@@ -1,5 +1,5 @@
 //! 标准 updater 的真实 HTTP 与签名路径；不调用成功安装、不操作桌面或注册表。
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -47,12 +47,21 @@ impl Server {
                     }
                     Err(e) => panic!("{e}"),
                 };
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
-                let mut request = [0; 4096];
-                let len = stream.read(&mut request).unwrap();
-                let request = String::from_utf8_lossy(&request[..len]);
+                let mut reader = BufReader::new(&mut stream);
+                let mut request = String::new();
+                reader.read_line(&mut request).unwrap();
+                let mut header = String::new();
+                loop {
+                    header.clear();
+                    if reader.read_line(&mut header).unwrap() == 0 || header == "\r\n" {
+                        break;
+                    }
+                }
+                drop(reader);
                 let mode = worker_mode.load(Ordering::Relaxed);
                 let (status, body) = if request.starts_with("GET /package ") {
                     worker_downloads.fetch_add(1, Ordering::Relaxed);
@@ -120,7 +129,10 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        self.worker.take().unwrap().join().unwrap();
+        let result = self.worker.take().unwrap().join();
+        if !std::thread::panicking() {
+            result.unwrap();
+        }
     }
 }
 

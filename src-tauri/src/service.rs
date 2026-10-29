@@ -57,6 +57,8 @@ pub struct Status {
     pub cpa_key_hint: Option<String>,
     pub connection_revision: String,
     pub model: Option<String>,
+    /// 仅 CPA 模式使用缓存中的显示名；实际模型 ID 保留在 model 中。
+    pub model_display_name: Option<String>,
     pub subagent_model: Option<String>,
     pub aliases: Aliases,
     pub picker_count: usize,
@@ -163,6 +165,7 @@ impl Service {
             cpa_key_hint: None,
             connection_revision: String::new(),
             model: None,
+            model_display_name: None,
             subagent_model: None,
             aliases: Aliases { opus: None, sonnet: None, haiku: None },
             picker_count: 0,
@@ -210,6 +213,17 @@ impl Service {
         }
         let cfg = managed::read_model_config(&managed::extract_model_fields(&loaded.doc));
         s.model = cfg.default_model;
+        if s.mode == "cpa" {
+            s.model_display_name = s.model.as_ref().and_then(|id| {
+                st.models
+                    .iter()
+                    .find(|m| &m.id == id)
+                    .and_then(|m| m.display_name.as_deref())
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_string)
+            });
+        }
         s.subagent_model = cfg.subagent_model;
         s.aliases = Aliases { opus: cfg.alias_opus, sonnet: cfg.alias_sonnet, haiku: cfg.alias_haiku };
         s.picker_count = cfg.picker_models.len();

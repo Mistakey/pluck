@@ -439,15 +439,10 @@ small {
   flex-direction: column;
   gap: 4px;
 }
-.model-name code,
 .model-name > span {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-.model-name > span {
-  font-size: 12px;
-  color: var(--secondary);
 }
 .model-tag,
 .missing {

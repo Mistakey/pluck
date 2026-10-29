@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWorkspace } from "./useWorkspace";
-import type { ModelConfig } from "./api";
+import type { ModelConfig, ModelInfo } from "./api";
+
+function modelName(model: ModelInfo): string {
+  return model.displayName?.trim() || model.id;
+}
 
 function Icon({
   name,
@@ -154,6 +158,7 @@ export default function App() {
         <span>{label}</span>
         <select
           aria-label={label}
+          title={draft?.[key] ?? undefined}
           disabled={writing || !draft}
           value={draft?.[key] ?? ""}
           onChange={(e) =>
@@ -168,8 +173,8 @@ export default function App() {
                 : "不指定"}
           </option>
           {options.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.id}
+            <option key={m.id} value={m.id} title={m.id}>
+              {modelName(m)}
               {m.missing ? " · 列表外" : ""}
             </option>
           ))}
@@ -416,10 +421,10 @@ export default function App() {
                   <div className="model-rows" data-testid="model-list">
                     {visible.length ? (
                       visible.map((m) => (
-                        <label className="model-row" key={m.id}>
+                        <label className="model-row" key={m.id} title={m.id}>
                           <input
                             type="checkbox"
-                            aria-label={`将 ${m.id} 加入菜单`}
+                            aria-label={`将 ${modelName(m)} 加入菜单`}
                             checked={selected.has(m.id)}
                             disabled={writing || !draft}
                             onChange={(e) =>
@@ -431,10 +436,7 @@ export default function App() {
                             }
                           />
                           <div className="model-name">
-                            <code title={m.id}>{m.id}</code>
-                            {m.displayName && m.displayName !== m.id && (
-                              <span>{m.displayName}</span>
-                            )}
+                            <span>{modelName(m)}</span>
                           </div>
                           {m.missing ? (
                             <span className="missing">列表外</span>

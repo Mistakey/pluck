@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Stable version, e.g. 0.3.0 (must match the selected main commit)'
+        description: 'Stable version, e.g. 0.3.0 (must match the selected commit)'
         required: true
         type: string
       notes:

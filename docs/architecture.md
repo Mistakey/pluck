@@ -42,3 +42,5 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 - [首版资源测量](verification/resources.md)：Windows release 隔离入口连续 5 次创建/关闭，关闭后均回到 1 个进程、55.9–56.1 MiB 专用内存；窗口创建为 1.3–3.1 秒。相比[首版记录](verification/first-release.md)中的隐藏常驻，主要变化是 WebView 子进程会回收；这不是长期无泄漏的证明。
 
 新版单页界面、固定旧数据、关闭边界与隐藏资源测量的交付证据见 [0.2.0 验证记录](verification/single-page.md)。
+
+安装与更新服务、签名产物及发布门槛的实现证据见[更新验证记录](verification/updates.md)。

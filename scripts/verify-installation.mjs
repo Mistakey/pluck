@@ -1,4 +1,4 @@
-// Real installers and the real WebView IPC, on an expendable hosted Windows VM only.
+// Real installers and the production UI, on an expendable hosted Windows VM only.
 // Never run this against a person's Windows profile or desktop.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -72,16 +72,19 @@ const preserved = () => {
   return current;
 };
 function ui(pid, executable, action = "read", name = "") {
-  return JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", path.resolve("scripts/lib/installed-ui.ps1")], {
+  const result = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", path.resolve("scripts/lib/installed-ui.ps1")], {
     encoding: "utf8", windowsHide: true, timeout: 20000,
     env: { ...process.env, PLUCK_UIA_PID: String(pid), PLUCK_UIA_EXE: executable, PLUCK_UIA_ACTION: action, PLUCK_UIA_NAME: name },
   }));
+  if (action === "read") fs.writeFileSync(path.join(evidence, `ui-${pid}.json`), JSON.stringify(result, null, 2));
+  return result;
 }
 const names = elements => elements.map(e => e.name).join("\n");
 async function view(pid, executable, expected) {
   return until(`installed application UI: ${expected}`, () => {
     const snapshot = ui(pid, executable);
-    return names(snapshot).includes(expected) ? snapshot : null;
+    // WebView accessibility exposes the label and interpolated version as separate text nodes.
+    return names(snapshot).replace(/\s+/g, "").includes(expected.replace(/\s+/g, "")) ? snapshot : null;
   });
 }
 async function click(pid, executable, name) {
@@ -190,7 +193,7 @@ try {
   record("fully published version discovered by actual installed client", { client: available });
   await click(installedProcess.pid, installedExe, "^更新并重启$");
   // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
-  // and exits. No IPC response or installer is stubbed. Reconnect only after a new process exists.
+  // and exits. No IPC response or installer is stubbed. Inspect only the new process's window.
   await until("updater exits previous process", () => !processes().some(p => p.ProcessId === installedProcess.pid), 180000);
   await until("NSIS replaces binary and restarts installed application", () => {
     return hash(installedExe) !== report.beforeUpdate.binarySha256 && processes().some(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());

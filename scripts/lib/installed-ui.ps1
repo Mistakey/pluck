@@ -32,6 +32,8 @@ if ($env:PLUCK_UIA_ACTION -eq 'click') {
     if (-not $button.Current.IsEnabled) { throw 'Application button is disabled' }
     $pattern = $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
     $pattern.Invoke()
+    '{"clicked":true}'
+    exit 0
 }
 $result = @()
 foreach ($element in $elements) {

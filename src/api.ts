@@ -16,6 +16,7 @@ export interface Status {
   cpaKeyHint: string | null;
   connectionRevision: string;
   model: string | null;
+  modelDisplayName: string | null;
   subagentModel: string | null;
   aliases: { opus: string | null; sonnet: string | null; haiku: string | null };
   pickerCount: number;

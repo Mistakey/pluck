@@ -287,6 +287,43 @@ try {
     );
     assert.equal(backend.view.config.pickerModels.length, 36);
   });
+  await test("模型名称覆盖列表与所有用途，悬停保留 ID，保存仍使用 ID", async () => {
+    await boot();
+    await page.locator("summary").click();
+    const row = page.locator('.model-row[title="model-a"]');
+    assert.equal(await row.locator(".model-name").innerText(), "Alpha");
+    await row.getByRole("checkbox", { name: "将 Alpha 加入菜单" }).waitFor();
+    for (const name of ["默认模型", "子代理模型", "Opus", "Sonnet", "Haiku"]) {
+      const select = field(name);
+      assert.equal(await select.locator('option[value="model-a"]').innerText(), "Alpha");
+      assert.equal(await select.locator('option[value="model-a"]').getAttribute("title"), "model-a");
+      assert.equal(await select.locator('option[value="legacy-outside-list"]').innerText(), "legacy-outside-list · 列表外");
+      await select.selectOption("model-a");
+      assert.equal(await select.locator("option:checked").innerText(), "Alpha");
+      assert.equal(await select.getAttribute("title"), "model-a");
+    }
+    for (const query of ["Alpha", "model-a"]) {
+      await field("搜索模型").fill(query);
+      assert.equal(await page.locator(".model-row").count(), 1);
+      assert.equal(await page.locator(".model-name").innerText(), "Alpha");
+    }
+    await button("保存配置").click();
+    await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
+    for (const key of ["defaultModel", "subagentModel", "aliasOpus", "aliasSonnet", "aliasHaiku"])
+      assert.equal(backend.view.config[key], "model-a");
+
+    // Cached lists can lose a model or have no display name after a refresh.
+    backend.view.models[0].displayName = null;
+    backend.view.models[1].displayName = "  ";
+    await button("刷新列表").click();
+    await poll(async () => (await field("默认模型").locator("option:checked").innerText()) === "model-a");
+    assert.equal(await page.locator('.model-row[title="model-a"] .model-name').innerText(), "model-a");
+    assert.equal(await field("默认模型").locator('option[value="model-b"]').innerText(), "model-b");
+    backend.view.models.shift();
+    await button("刷新列表").click();
+    await poll(async () => (await field("默认模型").locator("option:checked").innerText()) === "model-a · 列表外");
+    await chosen("默认模型", "model-a");
+  });
   await test("V2 默认、子代理、折叠别名和菜单写入", async () => {
     await boot();
     await dirty();

@@ -132,7 +132,7 @@ fn status_lines(s: &Status) -> (String, String) {
     };
     let model = match s.mode.as_str() {
         "error" => truncate(s.error.as_deref().unwrap_or(""), 60),
-        _ => format!("默认模型：{}", s.model.as_deref().unwrap_or("未指定（原生默认）")),
+        _ => format!("默认模型：{}", s.model_display_name.as_deref().or(s.model.as_deref()).unwrap_or("未指定（原生默认）")),
     };
     (head, model)
 }
@@ -170,7 +170,7 @@ fn refresh_tray(app: &AppHandle, s: &Status) {
 fn tooltip(s: &Status) -> String {
     match s.mode.as_str() {
         "error" => "Pluck · 用户配置无法读取".to_string(),
-        _ => format!("Pluck · {} · {}", s.mode_label, s.model.as_deref().unwrap_or("默认模型")),
+        _ => format!("Pluck · {} · {}", s.mode_label, s.model_display_name.as_deref().or(s.model.as_deref()).unwrap_or("默认模型")),
     }
 }
 
@@ -310,4 +310,68 @@ pub fn run() {
             show_window(app);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tray_uses_cpa_names_without_changing_model_ids_or_native_aliases() {
+        let root = tempfile::tempdir().unwrap();
+        let claude = root.path().join("claude");
+        let data = root.path().join("data");
+        std::fs::create_dir_all(&claude).unwrap();
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(
+            data.join("state.json"),
+            json!({
+                "version": 1,
+                "cpa": {"baseUrl": "http://127.0.0.1:8317", "apiKey": "isolated"},
+                "models": [
+                    {"id": "claude-fable-test", "displayName": "GPT 5.6 Sol"},
+                    {"id": "no-name", "displayName": null},
+                    {"id": "empty-name", "displayName": "  "},
+                    {"id": "opus", "displayName": "CPA name"}
+                ]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let service = Service::new(claude.clone(), &data);
+        for (mode, id, expected) in [
+            ("cpa", Some("claude-fable-test"), "GPT 5.6 Sol"),
+            ("cpa", Some("no-name"), "no-name"),
+            ("cpa", Some("empty-name"), "empty-name"),
+            ("cpa", Some("removed-model"), "removed-model"),
+            ("official", Some("opus"), "opus"),
+            ("other", Some("claude-fable-test"), "claude-fable-test"),
+            ("cpa", None, "未指定（原生默认）"),
+        ] {
+            let mut settings = json!({"model": id});
+            if mode != "official" {
+                settings["env"] = json!({"ANTHROPIC_BASE_URL": if mode == "cpa" {
+                    "http://127.0.0.1:8317"
+                } else { "http://127.0.0.1:8318" }});
+            }
+            std::fs::write(claude.join("settings.json"), settings.to_string()).unwrap();
+            let status = service.status();
+            assert_eq!(status.mode, mode);
+            assert_eq!(status.model.as_deref(), id);
+            assert_eq!(status_lines(&status).1, format!("默认模型：{expected}"));
+            assert_eq!(
+                tooltip(&status),
+                format!(
+                    "Pluck · {} · {}",
+                    status.mode_label,
+                    if id.is_none() {
+                        "默认模型"
+                    } else {
+                        expected
+                    }
+                )
+            );
+        }
+    }
 }

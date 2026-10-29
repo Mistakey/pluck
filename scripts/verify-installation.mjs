@@ -102,7 +102,11 @@ try {
   gh(["run", "download", process.env.BUILD_RUN, "--repo", repo, "--name", `installed-binary-${version}`, "--dir", path.join(root, "binary")]);
   const previousInfo = validateAssets(previous, previousVersion), candidateInfo = validateAssets(candidate, version);
   report.artifacts = { previous: previousInfo, candidate: candidateInfo };
-  assert.equal(candidateInfo.commit, process.env.GITHUB_SHA, "Verify exactly the candidate source, not another run's output");
+  // Verification-script/document repairs need not rebuild an unchanged production binary.
+  // Pin the candidate's own build, then require identical production sources in this verifier.
+  execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", candidateInfo.commit], { windowsHide: true, stdio: "pipe" });
+  execFileSync("git", ["diff", "--exit-code", candidateInfo.commit, "HEAD", "--", "src", "src-tauri", "package.json", "pnpm-lock.yaml", "scripts/release.mjs"], { windowsHide: true, stdio: "pipe" });
+  report.verifierCommit = process.env.GITHUB_SHA;
   const build = JSON.parse(gh(["run", "view", process.env.BUILD_RUN, "--repo", repo, "--json", "conclusion,headSha"]));
   assert.equal(build.conclusion, "success"); assert.equal(build.headSha, candidateInfo.commit);
   assert.equal((await latest()).version, previousVersion);

@@ -13,3 +13,4 @@
 - PowerShell 脚本含中文时保存为 UTF-8 BOM；字符串中不要用中文弯引号 `“”`，PowerShell 会把它当作字符串定界符。
 - 用 `Copy-Item` 把旧版本源文件换回或换出时会保留原修改时间，cargo 可能不重新编译而沿用旧产物；换文件后更新修改时间（或 `cargo clean -p pluck`）再测。
 - Windows 下使用 Tauri mock runtime 的集成测试也需要 Common Controls v6 清单；`build.rs` 为 tests 和 examples 链接同一份资源，否则进程启动会报 `STATUS_ENTRYPOINT_NOT_FOUND`。
+- GitHub 托管 Windows 的 WebView2 155 实装验证中，环境变量指定的调试端口没有进入浏览器启动参数，不能据此判断应用未启动。真实安装验证使用仅限托管 VM 的 `scripts/lib/installed-ui.ps1`，按应用 PID 读取/调用无障碍控件；React 插值的版本文本会拆为多个节点，核对时合并空白。不要为此给产品加入调试入口或操作本机桌面。

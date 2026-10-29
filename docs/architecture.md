@@ -21,7 +21,7 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 | `src-tauri/examples/resources.rs` | 复用生产后台与窗口工厂，隔离实例中创建和关闭隐藏窗口，供按需资源测量 |
 | `scripts/` | CPA 替身、按需的 CLI 原生菜单兼容检查与 Windows 资源测量（见 README“验证”） |
 | `.github/workflows/release.yml`、`scripts/release.mjs` | 手动触发的 Windows x64 正式发布；版本核对、签名构建、元数据及校验清单、draft 上传回读与最终公开 |
-| `scripts/verify-installation.mjs` | GitHub 托管临时 Windows VM 中的真实免安装迁移、单实例、缺件草稿与安装版跨版本更新验证；通过真实安装程序和应用窗口，不替换 IPC 或安装器 |
+| `scripts/verify-installation.mjs`、`scripts/lib/installed-ui.ps1` | GitHub 托管临时 Windows VM 中的真实免安装迁移、单实例、缺件草稿与安装版跨版本更新验证；无障碍接口限定到指定应用进程，不替换 IPC 或安装器 |
 
 ## 数据与边界
 

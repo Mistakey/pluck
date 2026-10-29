@@ -123,46 +123,46 @@ try {
   const installedExe = path.join(installedDir, "pluck.exe");
   const installer = path.join(previous, `Pluck_${previousVersion}_x64-setup.exe`);
   if (!diagnosticOnly) {
-  if (process.env.LEGACY_BUILD_RUN) {
-    assert.match(process.env.LEGACY_BUILD_RUN, /^\d+$/);
-    const legacyRun = JSON.parse(gh(["run", "view", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--json", "jobs,headSha"]));
-    assert(legacyRun.jobs.some(job => job.steps.some(step => step.name === "Build the existing portable version without changing its source" && step.conclusion === "success")));
-    gh(["run", "download", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--name", "legacy-portable-d6cca12", "--dir", path.resolve(".forge/tmp/portable-source/src-tauri/target/release")]);
-    report.legacyBuild = { run: process.env.LEGACY_BUILD_RUN, verifierCommit: legacyRun.headSha };
-  }
-  const portable = path.resolve(".forge/tmp/portable-source/src-tauri/target/release/pluck.exe");
-  const portableProcess = start(portable, ["--hidden"]);
-  await until("old portable process", () => processes().find(p => p.ProcessId === portableProcess.pid));
-  await wait(3000);
-  assert.equal(portableProcess.exitCode, null);
-  const portableBefore = processes();
-  const installExit = await install(installer, ["/S", `/D=${installedDir}`]);
-  const afterInstall = processes();
-  record("actual installer while the existing portable process runs", { portableCommit: "d6cca12", portableSha256: hash(portable), portableBefore, installExit, afterInstall });
-  // A running portable instance may block or receive the installed program's single-instance request.
-  // The supported migration explicitly exits that instance before launching the installation.
-  if (installExit !== 0) {
-    stopApps();
-    assert.equal(await install(installer, ["/S", `/D=${installedDir}`]), 0);
-  }
-  assert(fs.existsSync(installedExe));
-  let activePortable = portableProcess;
-  if (!processes().some(p => p.ProcessId === activePortable.pid)) {
-    // Also cover an old portable shortcut launched after installation, even when NSIS
-    // successfully terminated the first old process during the install.
-    stopApps();
-    activePortable = start(portable, ["--hidden"]);
-    await until("portable instance restarted after installation", () => processes().some(p => p.ProcessId === activePortable.pid));
+    if (process.env.LEGACY_BUILD_RUN) {
+      assert.match(process.env.LEGACY_BUILD_RUN, /^\d+$/);
+      const legacyRun = JSON.parse(gh(["run", "view", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--json", "jobs,headSha"]));
+      assert(legacyRun.jobs.some(job => job.steps.some(step => step.name === "Build the existing portable version without changing its source" && step.conclusion === "success")));
+      gh(["run", "download", process.env.LEGACY_BUILD_RUN, "--repo", repo, "--name", "legacy-portable-d6cca12", "--dir", path.resolve(".forge/tmp/portable-source/src-tauri/target/release")]);
+      report.legacyBuild = { run: process.env.LEGACY_BUILD_RUN, verifierCommit: legacyRun.headSha };
+    }
+    const portable = path.resolve(".forge/tmp/portable-source/src-tauri/target/release/pluck.exe");
+    const portableProcess = start(portable, ["--hidden"]);
+    await until("old portable process", () => processes().find(p => p.ProcessId === portableProcess.pid));
     await wait(3000);
-    assert.equal(activePortable.exitCode, null);
-  }
-  const second = start(installedExe, ["--hidden"]);
-  await until("installed launch forwarded to portable single instance", () => second.exitCode !== null);
-  assert.equal(second.exitCode, 0);
-  assert(processes().some(p => p.ProcessId === activePortable.pid));
-  record("portable single-instance forwarding observed", { portablePid: activePortable.pid, installedLaunchPid: second.pid, installedLaunchExit: second.exitCode });
-  stopApps();
-  await until("portable instance stopped", () => processes().length === 0);
+    assert.equal(portableProcess.exitCode, null);
+    const portableBefore = processes();
+    const installExit = await install(installer, ["/S", `/D=${installedDir}`]);
+    const afterInstall = processes();
+    record("actual installer while the existing portable process runs", { portableCommit: "d6cca12", portableSha256: hash(portable), portableBefore, installExit, afterInstall });
+    // A running portable instance may block or receive the installed program's single-instance request.
+    // The supported migration explicitly exits that instance before launching the installation.
+    if (installExit !== 0) {
+      stopApps();
+      assert.equal(await install(installer, ["/S", `/D=${installedDir}`]), 0);
+    }
+    assert(fs.existsSync(installedExe));
+    let activePortable = portableProcess;
+    if (!processes().some(p => p.ProcessId === activePortable.pid)) {
+      // Also cover an old portable shortcut launched after installation, even when NSIS
+      // successfully terminated the first old process during the install.
+      stopApps();
+      activePortable = start(portable, ["--hidden"]);
+      await until("portable instance restarted after installation", () => processes().some(p => p.ProcessId === activePortable.pid));
+      await wait(3000);
+      assert.equal(activePortable.exitCode, null);
+    }
+    const second = start(installedExe, ["--hidden"]);
+    await until("installed launch forwarded to portable single instance", () => second.exitCode !== null);
+    assert.equal(second.exitCode, 0);
+    assert(processes().some(p => p.ProcessId === activePortable.pid));
+    record("portable single-instance forwarding observed", { portablePid: activePortable.pid, installedLaunchPid: second.pid, installedLaunchExit: second.exitCode });
+    stopApps();
+    await until("portable instance stopped", () => processes().length === 0);
   } else {
     assert.equal(await install(installer, ["/S", `/D=${installedDir}`]), 0);
   }
@@ -177,40 +177,40 @@ try {
   record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), currentVersion: previousVersion, ui: before });
 
   if (!diagnosticOnly) {
-  const notes = path.join(root, "notes.txt");
-  fs.writeFileSync(notes, JSON.parse(fs.readFileSync(path.join(candidate, "latest.json"))).notes);
-  // Use the production publication function and real GitHub API. Omit one uploaded asset to
-  // reproduce an interrupted upload, then let production readback reject the incomplete draft.
-  assert.throws(() => publish(candidate, version, repo, notes, args => {
-    if (args[0] === "release" && args[1] === "upload") args = args.filter(a => a !== path.join(candidate, "latest.json"));
-    return gh(args);
-  }), /incomplete/);
-  const draft = JSON.parse(gh(["release", "view", `v${version}`, "--repo", repo, "--json", "isDraft,assets,url"]));
-  assert.equal(draft.isDraft, true); assert.equal(draft.assets.length, 4);
-  assert.equal((await latest()).version, previousVersion);
-  await click(installedProcess.pid, installedExe, "^检查更新$");
-  const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
-  assert(!names(afterFailure).includes(`发现新版 ${version}`));
-  record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
-  gh(["release", "delete", `v${version}`, "--repo", repo, "--cleanup-tag", "--yes"]);
-  publish(candidate, version, repo, notes, gh);
-  await until("new public release manifest", async () => (await latest()).version === version, 120000);
-  await click(installedProcess.pid, installedExe, "^检查更新$");
-  const available = await view(installedProcess.pid, installedExe, `发现新版 ${version}`);
-  record("fully published version discovered by actual installed client", { client: available });
-  await click(installedProcess.pid, installedExe, "^更新并重启$");
-  // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
-  // and exits. No IPC response or installer is stubbed. Inspect only the new process's window.
-  await until("updater exits previous process", () => !processes().some(p => p.ProcessId === installedProcess.pid), 180000);
-  await until("NSIS replaces binary and restarts installed application", () => {
-    return hash(installedExe) !== report.beforeUpdate.binarySha256 && processes().some(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
-  }, 180000);
-  const restarted = processes().find(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
-  await click(restarted.ProcessId, installedExe, "^设置");
-  const after = await view(restarted.ProcessId, installedExe, `当前版本 ${version}`);
-  assert.equal(hash(installedExe), fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim());
-  report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
-  record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
+    const notes = path.join(root, "notes.txt");
+    fs.writeFileSync(notes, JSON.parse(fs.readFileSync(path.join(candidate, "latest.json"))).notes);
+    // Use the production publication function and real GitHub API. Omit one uploaded asset to
+    // reproduce an interrupted upload, then let production readback reject the incomplete draft.
+    assert.throws(() => publish(candidate, version, repo, notes, args => {
+      if (args[0] === "release" && args[1] === "upload") args = args.filter(a => a !== path.join(candidate, "latest.json"));
+      return gh(args);
+    }), /incomplete/);
+    const draft = JSON.parse(gh(["release", "view", `v${version}`, "--repo", repo, "--json", "isDraft,assets,url"]));
+    assert.equal(draft.isDraft, true); assert.equal(draft.assets.length, 4);
+    assert.equal((await latest()).version, previousVersion);
+    await click(installedProcess.pid, installedExe, "^检查更新$");
+    const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
+    assert(!names(afterFailure).includes(`发现新版 ${version}`));
+    record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
+    gh(["release", "delete", `v${version}`, "--repo", repo, "--cleanup-tag", "--yes"]);
+    publish(candidate, version, repo, notes, gh);
+    await until("new public release manifest", async () => (await latest()).version === version, 120000);
+    await click(installedProcess.pid, installedExe, "^检查更新$");
+    const available = await view(installedProcess.pid, installedExe, `发现新版 ${version}`);
+    record("fully published version discovered by actual installed client", { client: available });
+    await click(installedProcess.pid, installedExe, "^更新并重启$");
+    // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
+    // and exits. No IPC response or installer is stubbed. Inspect only the new process's window.
+    await until("updater exits previous process", () => !processes().some(p => p.ProcessId === installedProcess.pid), 180000);
+    await until("NSIS replaces binary and restarts installed application", () => {
+      return hash(installedExe) !== report.beforeUpdate.binarySha256 && processes().some(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
+    }, 180000);
+    const restarted = processes().find(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
+    await click(restarted.ProcessId, installedExe, "^设置");
+    const after = await view(restarted.ProcessId, installedExe, `当前版本 ${version}`);
+    assert.equal(hash(installedExe), fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim());
+    report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
+    record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
   }
   report.finishedAt = new Date().toISOString(); report.passed = true; save();
 } catch (error) {

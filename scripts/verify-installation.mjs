@@ -120,6 +120,12 @@ try {
   for (const dir of ["claude", "data"]) fs.cpSync(path.resolve("docs/verification/fixtures/legacy-cpa", dir), path.join(root, dir), { recursive: true });
   baseline = Object.fromEntries(files.map(file => [path.basename(file), hash(file)]));
   record("downloaded signed real artifacts and copied legacy data", { previousInfo, candidateInfo, dataHashes: baseline });
+  // NSIS restarts as the logged-in Windows user, rather than inheriting a shell's temporary
+  // process environment. Configure that expendable test user's actual environment as well.
+  execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", [
+    "$ErrorActionPreference='Stop'",
+    "foreach ($name in @('CLAUDE_CONFIG_DIR','PLUCK_DATA_DIR','WEBVIEW2_USER_DATA_FOLDER')) { [Environment]::SetEnvironmentVariable($name, [Environment]::GetEnvironmentVariable($name, 'Process'), 'User') }",
+  ].join("; ")], { env, windowsHide: true, stdio: "pipe" });
 
   const installedDir = path.join(process.env.LOCALAPPDATA, "Pluck");
   const installedExe = path.join(installedDir, "pluck.exe");

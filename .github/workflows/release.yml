@@ -109,7 +109,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: actions/checkout@v4
         with:
-          ref: d6cca12
+          ref: d6cca12db0d9b479297dbc269ac0c4c0dc0f99d1
           path: .forge/tmp/portable-source
       - uses: dtolnay/rust-toolchain@stable
       - name: Build the existing portable version without changing its source

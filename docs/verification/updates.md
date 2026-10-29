@@ -38,4 +38,4 @@
 
 ## 留待发布任务的证据
 
-公开 GitHub 仓库和下载 URL、GitHub Actions 远端实际运行、旧免安装版到安装版、安装版跨版本更新及重启、单实例影响的实际进程/路径证据，均属于 `pluck-jtb.2`。公司电脑首次安装属于 `pluck-jtb.3`。本次没有向 GitHub 推送、创建 Release、操作真实配置或在本机安装。重复发布方法见[发布维护](../releases.md)。
+公开 GitHub 仓库和下载 URL、GitHub Actions 远端实际运行、旧免安装版到安装版、安装版跨版本更新及重启、单实例影响的实际进程/路径证据，后续已由 `pluck-jtb.2` 验证完成，见[公开发布验证](publication.md)。公司电脑首次安装属于 `pluck-jtb.3`。本实现任务当时没有向 GitHub 推送、创建 Release、操作真实配置或在本机安装。重复发布方法见[发布维护](../releases.md)。

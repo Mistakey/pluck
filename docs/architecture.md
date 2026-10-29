@@ -21,6 +21,7 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 | `src-tauri/examples/resources.rs` | 复用生产后台与窗口工厂，隔离实例中创建和关闭隐藏窗口，供按需资源测量 |
 | `scripts/` | CPA 替身、按需的 CLI 原生菜单兼容检查与 Windows 资源测量（见 README“验证”） |
 | `.github/workflows/release.yml`、`scripts/release.mjs` | 手动触发的 Windows x64 正式发布；版本核对、签名构建、元数据及校验清单、draft 上传回读与最终公开 |
+| `scripts/verify-installation.mjs`、`scripts/lib/installed-ui.ps1` | GitHub 托管临时 Windows VM 中的真实免安装迁移、单实例、缺件草稿与安装版跨版本更新验证；无障碍接口限定到指定应用进程，不替换 IPC 或安装器 |
 
 ## 数据与边界
 
@@ -39,8 +40,11 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 - 更新服务与窗口分离：启动及每 6 小时检查一次正式元数据，手动检查复用同一服务；检查不创建窗口或获取焦点，托盘菜单显示新版或失败，重建窗口通过快照恢复状态。快照带递增 revision，拒绝晚到响应覆盖新状态。版本来自 Tauri 包信息，无前端版本常量。
 - 用户明确点击更新才经过草稿协调并请求下载；保存两类草稿成功或明确放弃后才能继续，取消、保存失败、冲突保留未保存输入。更新请求携带确认时的版本，服务拒绝过时确认和并行操作。标准组件校验签名及签名所绑定的版本，再交给 NSIS 安装并重启；下载或校验失败保留当前程序和候选版本，提供显式重试。
 - 交付 Windows x64 NSIS 当前用户安装版，应用标识仍为 `com.pluck.desktop`。同时核对标准 bundle 标记、HKCU 的 NSIS 安装位置与当前运行路径，拒绝免安装/开发二进制直接应用更新。正式构建从仓库变量注入公钥与 GitHub Releases 地址；未配置渠道的本地构建明确显示原因。私钥仅在构建步骤使用，不进入源码或附件。[发布维护](releases.md)记录引导配置和重复发布方法。
+- 公开渠道为 [Mistakey/pluck Releases](https://github.com/Mistakey/pluck/releases/latest)，固定更新元数据为该仓库的 `releases/latest/download/latest.json`。同一手动工作流在 main 上发布，在任务分支保留签名候选；真实安装验证模式只在托管 Windows VM 运行，核对候选构建及生产源码一致后，用生产发布函数验证缺件草稿并完整公开候选，再通过真实客户端完成更新。签名 secrets 仅用于构建作业，不进入安装验证作业。
 - [首版资源测量](verification/resources.md)：Windows release 隔离入口连续 5 次创建/关闭，关闭后均回到 1 个进程、55.9–56.1 MiB 专用内存；窗口创建为 1.3–3.1 秒。相比[首版记录](verification/first-release.md)中的隐藏常驻，主要变化是 WebView 子进程会回收；这不是长期无泄漏的证明。
 
 新版单页界面、固定旧数据、关闭边界与隐藏资源测量的交付证据见 [0.2.0 验证记录](verification/single-page.md)。
 
 安装与更新服务、签名产物及发布门槛的实现证据见[更新验证记录](verification/updates.md)。
+
+公开 0.2.0/0.2.1、免安装迁移、真实应用内安装与重启、数据保留及失败发布证据见[公开发布验证](verification/publication.md)。NSIS 按 Windows 用户环境重启，临时 shell 变量不属于持久目录配置；验证在独立用户环境中保持目录，并以签名安装器中的真实程序作为替换比对基准。

@@ -1,0 +1,810 @@
+{
+  "startedAt": "2026-10-29T12:26:06.828Z",
+  "repository": "Mistakey/pluck",
+  "run": "40873163224",
+  "candidateBuild": "40869182120",
+  "diagnosticOnly": false,
+  "publishedOnly": true,
+  "checks": [
+    {
+      "name": "downloaded signed real artifacts and copied legacy data",
+      "at": "2026-10-29T12:26:17.587Z",
+      "previousInfo": {
+        "version": "0.2.0",
+        "commit": "1b0fab34f69ce0d8e85a7f2c09fd2e10277515c8",
+        "repository": "Mistakey/pluck",
+        "files": {
+          "Pluck_0.2.0_x64-setup.exe": "78c0cf31b234b36251c6f3646014d1b1468e8158ddc032b827fb6331c9d48f19",
+          "Pluck_0.2.0_x64-setup.exe.sig": "12faaa3a93987bda3a19f153e539abb72dc46f95e62a8fb7d68ff937376cc97d",
+          "latest.json": "0eb11ba9f2e78ccb85969e7f31ec26fe4ffe9745b9f1126135477b6dddcf0ae4"
+        }
+      },
+      "candidateInfo": {
+        "version": "0.2.1",
+        "commit": "d1a6846bda281736ad12bd308304fb78cf4f0532",
+        "repository": "Mistakey/pluck",
+        "files": {
+          "Pluck_0.2.1_x64-setup.exe": "0e6f2b5abe9a0d72511d9cc763a8fdae0bd1b92e19a6d349e59393d4bb1c145d",
+          "Pluck_0.2.1_x64-setup.exe.sig": "4038b36af8210129cf01cb1e396d7943b076ad9e2b8d887fa0479ecd7b85e5bc",
+          "latest.json": "327c645b0b813913f958e071952e99d21121ce245d97f164bde96067d67687c6"
+        }
+      },
+      "dataHashes": {
+        "state.json": "4f790c1e7883bbe1ae014efba448d299d24defd9e55577a008e5386b1425c95a",
+        "settings.json": "8f63585aae5d49a90a5dabecf4853570ccfb907f7f5b19548eac246e8f13d491",
+        ".credentials.json": "4b782bb9c940b0ccbf46d83c522e0aa90b526e20a163aebba10725cf36589c17"
+      }
+    },
+    {
+      "name": "actual installer while the existing portable process runs",
+      "at": "2026-10-29T12:26:24.822Z",
+      "portableCommit": "d6cca12",
+      "portableSha256": "0d0185b4c221757c36b5ec967898a7b3ff77f7dbba4838958b67de4513c22938",
+      "portableBefore": [
+        {
+          "ProcessId": 8624,
+          "ParentProcessId": 7708,
+          "ExecutablePath": "D:\\a\\pluck\\pluck\\.forge\\tmp\\portable-source\\src-tauri\\target\\release\\pluck.exe",
+          "CommandLine": "D:\\a\\pluck\\pluck\\.forge\\tmp\\portable-source\\src-tauri\\target\\release\\pluck.exe --hidden",
+          "CreationDate": "/Date(1793276779257)/"
+        }
+      ],
+      "installExit": 0,
+      "afterInstall": [
+        {
+          "ProcessId": 8624,
+          "ParentProcessId": 7708,
+          "ExecutablePath": "D:\\a\\pluck\\pluck\\.forge\\tmp\\portable-source\\src-tauri\\target\\release\\pluck.exe",
+          "CommandLine": "D:\\a\\pluck\\pluck\\.forge\\tmp\\portable-source\\src-tauri\\target\\release\\pluck.exe --hidden",
+          "CreationDate": "/Date(1793276779257)/"
+        }
+      ]
+    },
+    {
+      "name": "portable single-instance forwarding observed",
+      "at": "2026-10-29T12:26:25.987Z",
+      "portablePid": 8624,
+      "installedLaunchPid": 2132,
+      "installedLaunchExit": 0
+    },
+    {
+      "name": "installed process startup",
+      "at": "2026-10-29T12:26:29.960Z",
+      "pid": 2936,
+      "exitCode": null,
+      "processes": [
+        {
+          "ProcessId": 2936,
+          "ParentProcessId": 7708,
+          "ExecutablePath": "C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe",
+          "CommandLine": "C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe",
+          "CreationDate": "/Date(1793276786627)/"
+        }
+      ],
+      "dataHashes": {
+        "state.json": "4f790c1e7883bbe1ae014efba448d299d24defd9e55577a008e5386b1425c95a",
+        "settings.json": "8f63585aae5d49a90a5dabecf4853570ccfb907f7f5b19548eac246e8f13d491",
+        ".credentials.json": "4b782bb9c940b0ccbf46d83c522e0aa90b526e20a163aebba10725cf36589c17"
+      }
+    },
+    {
+      "name": "portable-to-current-user installation preserved all legacy data",
+      "at": "2026-10-29T12:26:33.848Z",
+      "dataHashes": {
+        "state.json": "4f790c1e7883bbe1ae014efba448d299d24defd9e55577a008e5386b1425c95a",
+        "settings.json": "8f63585aae5d49a90a5dabecf4853570ccfb907f7f5b19548eac246e8f13d491",
+        ".credentials.json": "4b782bb9c940b0ccbf46d83c522e0aa90b526e20a163aebba10725cf36589c17"
+      },
+      "currentVersion": "0.2.0",
+      "ui": [
+        {
+          "name": "Pluck",
+          "type": "ControlType.Pane",
+          "enabled": true
+        },
+        {
+          "name": "Pluck - Web content",
+          "type": "ControlType.Pane",
+          "enabled": true
+        },
+        {
+          "name": "Pluck",
+          "type": "ControlType.Document",
+          "enabled": true
+        },
+        {
+          "name": "P",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "功能导航",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "Claude Code",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "设置 发现新版本",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "发现新版本",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "设置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "应用更新",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "发现新版 0.2.1",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "当前版本 ",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "0.2.0",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "正式发布与升级验证：保留已有 CPA 连接、模型列表、快照及 Claude 配置，支持应用内签名更新并重启。",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "检查更新",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "更新并重启",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "配置位置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Claude Code 用户配置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude\\settings.json",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck 数据",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\data\\state.json",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Claude 配置目录",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "关于",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck · Claude Code 配置管理 · ",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "0.2.0",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "官方模式使用 Claude Code 自身登录",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "（已检测到凭据）",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "，Pluck 不修改登录凭据。",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "这里只修改用户级默认值。请重新打开 Claude Code CLI 以完整生效；项目设置、启动参数与环境变量仍按原生规则优先。",
+          "type": "ControlType.Text",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "already published candidate matches signed build and prior real draft proof",
+      "at": "2026-10-29T12:26:35.414Z",
+      "source": "d1a6846bda281736ad12bd308304fb78cf4f0532",
+      "publicationEvidenceRun": "40869393215"
+    },
+    {
+      "name": "fully published version discovered by actual installed client",
+      "at": "2026-10-29T12:26:35.900Z",
+      "client": [
+        {
+          "name": "Pluck",
+          "type": "ControlType.Pane",
+          "enabled": true
+        },
+        {
+          "name": "Pluck - Web content",
+          "type": "ControlType.Pane",
+          "enabled": true
+        },
+        {
+          "name": "Pluck",
+          "type": "ControlType.Document",
+          "enabled": true
+        },
+        {
+          "name": "P",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "功能导航",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "Claude Code",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "设置 发现新版本",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "发现新版本",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "设置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "应用更新",
+          "type": "ControlType.Group",
+          "enabled": true
+        },
+        {
+          "name": "发现新版 0.2.1",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "当前版本 ",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "0.2.0",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "正式发布与升级验证：保留已有 CPA 连接、模型列表、快照及 Claude 配置，支持应用内签名更新并重启。",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "检查更新",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "更新并重启",
+          "type": "ControlType.Button",
+          "enabled": true
+        },
+        {
+          "name": "配置位置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Claude Code 用户配置",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude\\settings.json",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck 数据",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\data\\state.json",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Claude 配置目录",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "关于",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "Pluck · Claude Code 配置管理 · ",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "0.2.0",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "官方模式使用 Claude Code 自身登录",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "（已检测到凭据）",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "，Pluck 不修改登录凭据。",
+          "type": "ControlType.Text",
+          "enabled": true
+        },
+        {
+          "name": "这里只修改用户级默认值。请重新打开 Claude Code CLI 以完整生效；项目设置、启动参数与环境变量仍按原生规则优先。",
+          "type": "ControlType.Text",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "name": "real in-app NSIS replacement and restart preserved every legacy data file",
+      "at": "2026-10-29T12:26:41.086Z",
+      "fromVersion": "0.2.0",
+      "toVersion": "0.2.1",
+      "dataHashes": {
+        "state.json": "4f790c1e7883bbe1ae014efba448d299d24defd9e55577a008e5386b1425c95a",
+        "settings.json": "8f63585aae5d49a90a5dabecf4853570ccfb907f7f5b19548eac246e8f13d491",
+        ".credentials.json": "4b782bb9c940b0ccbf46d83c522e0aa90b526e20a163aebba10725cf36589c17"
+      }
+    }
+  ],
+  "artifacts": {
+    "previous": {
+      "version": "0.2.0",
+      "commit": "1b0fab34f69ce0d8e85a7f2c09fd2e10277515c8",
+      "repository": "Mistakey/pluck",
+      "files": {
+        "Pluck_0.2.0_x64-setup.exe": "78c0cf31b234b36251c6f3646014d1b1468e8158ddc032b827fb6331c9d48f19",
+        "Pluck_0.2.0_x64-setup.exe.sig": "12faaa3a93987bda3a19f153e539abb72dc46f95e62a8fb7d68ff937376cc97d",
+        "latest.json": "0eb11ba9f2e78ccb85969e7f31ec26fe4ffe9745b9f1126135477b6dddcf0ae4"
+      }
+    },
+    "candidate": {
+      "version": "0.2.1",
+      "commit": "d1a6846bda281736ad12bd308304fb78cf4f0532",
+      "repository": "Mistakey/pluck",
+      "files": {
+        "Pluck_0.2.1_x64-setup.exe": "0e6f2b5abe9a0d72511d9cc763a8fdae0bd1b92e19a6d349e59393d4bb1c145d",
+        "Pluck_0.2.1_x64-setup.exe.sig": "4038b36af8210129cf01cb1e396d7943b076ad9e2b8d887fa0479ecd7b85e5bc",
+        "latest.json": "327c645b0b813913f958e071952e99d21121ce245d97f164bde96067d67687c6"
+      }
+    }
+  },
+  "signedInstallerPayloadHashes": {
+    "0.2.0": "92f58ec1ce9c27ae97cf6e3d2af5f9814e16ac00b1ad1914e68859136e81793f",
+    "0.2.1": "023e07bc75a7686d518140eccbf1376e1a7e65c7ed3e006c4ff7f3eaf7dbe638"
+  },
+  "recordedBuildBinaryHash": "5d6a50e0a89ffb9cae9a66a34e67d053266727a371eaa050d5b1a0872fb4b688",
+  "verifierCommit": "0be6e64d08214f4c06381cea39a06d0947945542",
+  "legacyBuild": {
+    "run": "40865893553",
+    "verifierCommit": "6f68cfe119c26f4f2a2f0647e3f21371478fb47e"
+  },
+  "beforeUpdate": {
+    "pid": 2936,
+    "binarySha256": "92f58ec1ce9c27ae97cf6e3d2af5f9814e16ac00b1ad1914e68859136e81793f",
+    "status": [
+      {
+        "name": "Pluck",
+        "type": "ControlType.Pane",
+        "enabled": true
+      },
+      {
+        "name": "Pluck - Web content",
+        "type": "ControlType.Pane",
+        "enabled": true
+      },
+      {
+        "name": "Pluck",
+        "type": "ControlType.Document",
+        "enabled": true
+      },
+      {
+        "name": "P",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "功能导航",
+        "type": "ControlType.Group",
+        "enabled": true
+      },
+      {
+        "name": "Claude Code",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "设置 发现新版本",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "发现新版本",
+        "type": "ControlType.Group",
+        "enabled": true
+      },
+      {
+        "name": "设置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "应用更新",
+        "type": "ControlType.Group",
+        "enabled": true
+      },
+      {
+        "name": "发现新版 0.2.1",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "当前版本 ",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "0.2.0",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "正式发布与升级验证：保留已有 CPA 连接、模型列表、快照及 Claude 配置，支持应用内签名更新并重启。",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "检查更新",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "更新并重启",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "配置位置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Claude Code 用户配置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude\\settings.json",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck 数据",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\data\\state.json",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Claude 配置目录",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "关于",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck · Claude Code 配置管理 · ",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "0.2.0",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "官方模式使用 Claude Code 自身登录",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "（已检测到凭据）",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "，Pluck 不修改登录凭据。",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "这里只修改用户级默认值。请重新打开 Claude Code CLI 以完整生效；项目设置、启动参数与环境变量仍按原生规则优先。",
+        "type": "ControlType.Text",
+        "enabled": true
+      }
+    ],
+    "registry": {
+      "InstallLocation": "\"C:\\Users\\runneradmin\\AppData\\Local\\Pluck\"",
+      "MainBinaryName": "pluck.exe",
+      "DisplayVersion": "0.2.0"
+    },
+    "processes": [
+      {
+        "ProcessId": 2936,
+        "ParentProcessId": 7708,
+        "ExecutablePath": "C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe",
+        "CommandLine": "C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe",
+        "CreationDate": "/Date(1793276786627)/"
+      }
+    ]
+  },
+  "publicationEvidenceRun": "40869393215",
+  "afterUpdate": {
+    "status": [
+      {
+        "name": "Pluck",
+        "type": "ControlType.Pane",
+        "enabled": true
+      },
+      {
+        "name": "Pluck - Web content",
+        "type": "ControlType.Pane",
+        "enabled": true
+      },
+      {
+        "name": "Pluck",
+        "type": "ControlType.Document",
+        "enabled": true
+      },
+      {
+        "name": "P",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "功能导航",
+        "type": "ControlType.Group",
+        "enabled": true
+      },
+      {
+        "name": "Claude Code",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "设置",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "设置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "应用更新",
+        "type": "ControlType.Group",
+        "enabled": true
+      },
+      {
+        "name": "应用更新",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "当前版本 ",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "0.2.1",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "已是最新版本。",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "检查更新",
+        "type": "ControlType.Button",
+        "enabled": true
+      },
+      {
+        "name": "配置位置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Claude Code 用户配置",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude\\settings.json",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck 数据",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\data\\state.json",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Claude 配置目录",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "D:\\a\\pluck\\pluck\\.forge\\tmp\\installation\\claude",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "关于",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "Pluck · Claude Code 配置管理 · ",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "0.2.1",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "官方模式使用 Claude Code 自身登录",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "（已检测到凭据）",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "，Pluck 不修改登录凭据。",
+        "type": "ControlType.Text",
+        "enabled": true
+      },
+      {
+        "name": "这里只修改用户级默认值。请重新打开 Claude Code CLI 以完整生效；项目设置、启动参数与环境变量仍按原生规则优先。",
+        "type": "ControlType.Text",
+        "enabled": true
+      }
+    ],
+    "binarySha256": "023e07bc75a7686d518140eccbf1376e1a7e65c7ed3e006c4ff7f3eaf7dbe638",
+    "processes": [
+      {
+        "ProcessId": 4924,
+        "ParentProcessId": 5032,
+        "ExecutablePath": "C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe",
+        "CommandLine": "\"C:\\Users\\runneradmin\\AppData\\Local\\Pluck\\pluck.exe\"",
+        "CreationDate": "/Date(1793276797785)/"
+      }
+    ],
+    "registry": {
+      "InstallLocation": "\"C:\\Users\\runneradmin\\AppData\\Local\\Pluck\"",
+      "MainBinaryName": "pluck.exe",
+      "DisplayVersion": "0.2.1"
+    }
+  },
+  "finishedAt": "2026-10-29T12:26:41.087Z",
+  "passed": true
+}

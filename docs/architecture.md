@@ -46,3 +46,5 @@ Pluck 是 Tauri 2 桌面应用：Rust 负责配置文件与网络，React/TypeSc
 新版单页界面、固定旧数据、关闭边界与隐藏资源测量的交付证据见 [0.2.0 验证记录](verification/single-page.md)。
 
 安装与更新服务、签名产物及发布门槛的实现证据见[更新验证记录](verification/updates.md)。
+
+公开 0.2.0/0.2.1、免安装迁移、真实应用内安装与重启、数据保留及失败发布证据见[公开发布验证](verification/publication.md)。NSIS 按 Windows 用户环境重启，临时 shell 变量不属于持久目录配置；验证在独立用户环境中保持目录，并以签名安装器中的真实程序作为替换比对基准。

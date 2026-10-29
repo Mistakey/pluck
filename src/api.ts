@@ -32,6 +32,7 @@ export interface OpResult {
 export interface ModelConfig {
   defaultModel: string | null;
   subagentModel: string | null;
+  autoModeModel: string | null;
   aliasOpus: string | null;
   aliasSonnet: string | null;
   aliasHaiku: string | null;

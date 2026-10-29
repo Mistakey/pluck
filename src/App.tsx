@@ -124,6 +124,7 @@ export default function App() {
           [
             draft.defaultModel,
             draft.subagentModel,
+            draft.autoModeModel,
             draft.aliasOpus,
             draft.aliasSonnet,
             draft.aliasHaiku,
@@ -149,6 +150,7 @@ export default function App() {
     key:
       | "defaultModel"
       | "subagentModel"
+      | "autoModeModel"
       | "aliasOpus"
       | "aliasSonnet"
       | "aliasHaiku",
@@ -170,7 +172,9 @@ export default function App() {
               ? "使用原生默认"
               : key === "subagentModel"
                 ? "跟随主模型"
-                : "不指定"}
+                : key === "autoModeModel"
+                  ? "使用原生审批默认"
+                  : "不指定"}
           </option>
           {options.map((m) => (
             <option key={m.id} value={m.id} title={m.id}>
@@ -520,6 +524,11 @@ export default function App() {
                   <h2>模型用途</h2>
                   {select("默认模型", "defaultModel")}
                   {select("子代理模型", "subagentModel")}
+                  {select("自动审批模型", "autoModeModel")}
+                  <p className="approval-hint">
+                    需 Claude Code 2.1.302+。未指定时使用原生审批默认。
+                    Anthropic 配置、模型策略或服务端审批可能覆盖选择；实际使用情况请查看 CLI 调试日志。
+                  </p>
                   <details className="alias-disclosure">
                     <summary>
                       别名映射<span>可选</span>

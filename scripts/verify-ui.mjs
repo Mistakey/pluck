@@ -14,6 +14,7 @@ const clone = (value) => structuredClone(value);
 const empty = {
   defaultModel: null,
   subagentModel: null,
+  autoModeModel: null,
   aliasOpus: null,
   aliasSonnet: null,
   aliasHaiku: null,
@@ -293,7 +294,7 @@ try {
     const row = page.locator('.model-row[title="model-a"]');
     assert.equal(await row.locator(".model-name").innerText(), "Alpha");
     await row.getByRole("checkbox", { name: "将 Alpha 加入菜单" }).waitFor();
-    for (const name of ["默认模型", "子代理模型", "Opus", "Sonnet", "Haiku"]) {
+    for (const name of ["默认模型", "子代理模型", "自动审批模型", "Opus", "Sonnet", "Haiku"]) {
       const select = field(name);
       assert.equal(await select.locator('option[value="model-a"]').innerText(), "Alpha");
       assert.equal(await select.locator('option[value="model-a"]').getAttribute("title"), "model-a");
@@ -309,7 +310,7 @@ try {
     }
     await button("保存配置").click();
     await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
-    for (const key of ["defaultModel", "subagentModel", "aliasOpus", "aliasSonnet", "aliasHaiku"])
+    for (const key of ["defaultModel", "subagentModel", "autoModeModel", "aliasOpus", "aliasSonnet", "aliasHaiku"])
       assert.equal(backend.view.config[key], "model-a");
 
     // Cached lists can lose a model or have no display name after a refresh.
@@ -336,6 +337,27 @@ try {
     assert.equal(backend.view.config.defaultModel, "model-b");
     assert.equal(backend.view.config.subagentModel, "model-a");
     assert.equal(backend.view.config.replaceBuiltIn, false);
+  });
+  await test("自动审批独立草稿在刷新后保留、阻止旧值覆盖并可清空", async () => {
+    await boot();
+    await field("自动审批模型").selectOption("model-a");
+    await button("刷新列表").click();
+    await chosen("自动审批模型", "model-a");
+    await button("官方订阅").click();
+    await button("继续编辑").click();
+    await chosen("自动审批模型", "model-a");
+    backend.view.config.autoModeModel = "model-b";
+    backend.view.revision = "external-approval-only";
+    await emit();
+    await page.locator(".conflict").waitFor();
+    await button("保存配置").click();
+    assert.equal(backend.calls.filter((c) => c.cmd === "save_model_config").length, 0);
+    await chosen("自动审批模型", "model-a");
+    await button("放弃修改").click();
+    await chosen("自动审批模型", "model-b");
+    await field("自动审批模型").selectOption("");
+    await button("保存配置").click();
+    await poll(() => backend.view.config.autoModeModel === null);
   });
   await test("V3 取消连接、设置往返与刷新保留草稿", async () => {
     await boot();
@@ -871,6 +893,7 @@ try {
       await page.getByRole("dialog").waitFor({ state: "hidden" });
       await field("默认模型").selectOption("model-b");
       await field("子代理模型").selectOption("model-a");
+      await field("自动审批模型").selectOption("model-a");
       await page.locator("summary").click();
       await field("Haiku").selectOption("model-b");
       await button("保存配置").click();
@@ -887,6 +910,7 @@ try {
       assert.deepEqual(after.snapshots, original.snapshots);
       assert.equal(settings.model, "model-b");
       assert.equal(settings.env.CLAUDE_CODE_SUBAGENT_MODEL, "model-a");
+      assert.equal(settings.env.CLAUDE_CODE_AUTO_MODE_MODEL, "model-a");
       assert.equal(settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, "model-b");
       assert.equal(settings.env.KEEP_ME, "preserved");
       assert.equal(

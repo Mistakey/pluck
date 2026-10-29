@@ -1,19 +1,20 @@
 // 按需的 Claude Code 兼容检查：配置映射变更或 CLI 升级后运行。
-// 只验证真实 /model 菜单、CLI 保存实际 ID、切换后仍可使用；其余由 Rust 测试负责。
+// 验证真实 /model 菜单、模型往返及真实自动审批的模型与请求去向。
 // pnpm verify:cli [--report path.md] [--keep]
 import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startTui, KEY } from "./lib/tui.mjs";
+import { verifyApproval } from "./lib/approval.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const report = args.includes("--report") ? path.resolve(args[args.indexOf("--report") + 1]) : null;
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "pluck-cli-"));
+fs.mkdirSync(path.join(repo, ".forge/tmp"), { recursive: true });
+const root = fs.mkdtempSync(path.join(repo, ".forge/tmp/pluck-cli-"));
 const claudeDir = path.join(root, "claude");
 const dataDir = path.join(root, "data");
 const project = path.join(root, "project");
@@ -28,6 +29,7 @@ const readSettings = () => JSON.parse(fs.readFileSync(settings, "utf8"));
 const results = [];
 let mock;
 let cliVersion;
+const evidence = [];
 
 function check(description, ok) {
   results.push({ description, ok: !!ok });
@@ -44,20 +46,22 @@ function pluck(...argv) {
 
 async function moveTo(tui, text) {
   for (let i = 0; i < 12; i++) {
-    const selected = tui.screen().split("\n").filter((line) => /^\s*❯\s+\S/.test(line)).pop();
+    const selected = tui.screen().split("\n").filter((line) => /^\s*[❯>]\s+\S/.test(line)).pop();
     if (selected?.includes(text)) return;
     tui.write(KEY.down);
     await tui.sleep(400);
   }
-  throw new Error(`菜单中找不到 ${text}`);
+  throw new Error(`菜单中找不到 ${text}\n${tui.screen()}`);
 }
 
 async function main() {
-  cliVersion = execFileSync(cli, ["--version"], { encoding: "utf8" }).trim();
+  cliVersion = execFileSync(cli, ["--version"], { encoding: "utf8", env }).trim();
   console.log(cliVersion);
   fs.mkdirSync(claudeDir, { recursive: true });
   fs.mkdirSync(project, { recursive: true });
-  fs.writeFileSync(settings, JSON.stringify({ model: "opus" }));
+  fs.writeFileSync(settings, JSON.stringify({ model: "opus", env: { CLAUDE_CODE_AUTO_MODE_MODEL: "claude-sonnet-4-6", KEEP_ME: "preserved" } }));
+  const credentials = '{"claudeAiOauth":{"accessToken":"isolated-placeholder"}}';
+  fs.writeFileSync(path.join(claudeDir, ".credentials.json"), credentials);
   fs.writeFileSync(path.join(claudeDir, ".claude.json"), JSON.stringify({
     hasCompletedOnboarding: true, lastOnboardingVersion: "9.9.9", theme: "dark",
     projects: { [project.replace(/\\/g, "/")]: { hasTrustDialogAccepted: true, allowedTools: [] } },
@@ -85,7 +89,7 @@ async function main() {
   pluck("save-cpa", base, key);
   pluck("refresh");
   pluck("set-models", JSON.stringify({
-    defaultModel: "gpt-5.1-codex", subagentModel: "qwen3-coder-plus",
+    defaultModel: "gpt-5.1-codex", subagentModel: "qwen3-coder-plus", autoModeModel: "qwen3-coder-plus",
     aliasOpus: null, aliasSonnet: null, aliasHaiku: null,
     pickerModels: ["gpt-5.1-codex", "qwen3-coder-plus", "deepseek-v3.2"], replaceBuiltIn: true,
   }));
@@ -95,7 +99,7 @@ async function main() {
   const tui = startTui(cli, [], { cwd: project, env });
   try {
     for (;;) {
-      const screen = await tui.waitFor(/❯\s*$|Allow external CLAUDE\.md|trust this folder/m, 60000);
+      const screen = await tui.waitFor(/[❯>]\s*$|Allow external CLAUDE\.md|trust this folder/m, 60000);
       if (/Allow external CLAUDE\.md/.test(screen)) {
         await moveTo(tui, "No, disable");
       } else if (/trust this folder/.test(screen)) {
@@ -121,21 +125,26 @@ async function main() {
     tui.write(KEY.ctrlC);
     await tui.sleep(1000);
     tui.kill();
+    for (let i = 0; i < 50 && !tui.exited(); i++) await sleep(100);
   }
   pluck("switch", "official");
+  check("官方审批模型恢复自己的配置", readSettings().env.CLAUDE_CODE_AUTO_MODE_MODEL === "claude-sonnet-4-6");
   pluck("switch", "cpa");
+  check("CPA 审批模型恢复自己的完整 ID", readSettings().env.CLAUDE_CODE_AUTO_MODE_MODEL === "qwen3-coder-plus");
+  check("往返保留未管理字段和官方凭据", readSettings().env.KEEP_ME === "preserved" && fs.readFileSync(path.join(claudeDir, ".credentials.json"), "utf8") === credentials);
   check("往返切换保留 CLI 保存的选择", readSettings().model === "qwen3-coder-plus");
   execFileSync(cli, ["-p", "say hi"], { cwd: project, env, encoding: "utf8", timeout: 120000 });
   const requests = fs.readFileSync(mockLog, "utf8").trim().split("\n").map((line) => JSON.parse(line))
     .filter((entry) => entry.path === "/v1/messages" && entry.model);
   check("新会话请求使用实际模型 ID", requests.length > 0 && requests.every((entry) => entry.model === "qwen3-coder-plus"));
+  await verifyApproval({ cli, env, project, root, base, mockLog, pluck, settings, check, evidence });
 }
 
 let failure;
 try {
   await main();
 } catch (e) {
-  failure = String(e.message).replaceAll(key, "***").split("\n")[0];
+  failure = String(e.message).replaceAll(key, "***");
   console.error(failure);
 } finally {
   if (mock && mock.exitCode === null) {
@@ -144,14 +153,15 @@ try {
     await ended;
   }
   if (args.includes("--keep")) console.log(`隔离目录：${root}`);
-  else fs.rmSync(root, { recursive: true, force: true });
+  else fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
 }
 if (report) {
   fs.mkdirSync(path.dirname(report), { recursive: true });
   fs.writeFileSync(report, [
     "# CLI 原生配置兼容验证", "", `时间：${new Date().toISOString()}；CLI：${cliVersion ?? "未知"}。独立配置和 PTY，不操作用户桌面。`, "",
     ...results.map((r) => `- ${r.ok ? "通过" : "失败"}：${r.description}`),
+    "", ...evidence,
     ...(failure ? [`- 中止：${failure}`] : []), "",
-  ].join("\n"));
+  ].join("\n").trimEnd() + "\n");
 }
 process.exitCode = failure ? 1 : 0;

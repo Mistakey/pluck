@@ -7,6 +7,7 @@ pub const ENV_BASE_URL: &str = "ANTHROPIC_BASE_URL";
 pub const ENV_AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
 pub const ENV_API_KEY: &str = "ANTHROPIC_API_KEY";
 pub const ENV_SUBAGENT: &str = "CLAUDE_CODE_SUBAGENT_MODEL";
+pub const ENV_AUTO_MODE: &str = "CLAUDE_CODE_AUTO_MODE_MODEL";
 
 /// 连接字段：只在 CPA 模式下由 Pluck 写入，官方模式下不存在。
 pub const CONNECTION_ENV_KEYS: &[&str] = &[ENV_BASE_URL, ENV_AUTH_TOKEN, ENV_API_KEY];
@@ -30,6 +31,7 @@ pub fn model_env_keys() -> Vec<String> {
         "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME".into(),
         "ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION".into(),
         ENV_SUBAGENT.into(),
+        ENV_AUTO_MODE.into(),
     ];
     for alias in ["OPUS", "SONNET", "HAIKU", "FABLE"] {
         for suffix in ["", "_NAME", "_DESCRIPTION", "_SUPPORTED_CAPABILITIES"] {
@@ -171,6 +173,7 @@ fn put_env(doc: &mut Map<String, Value>, env: Map<String, Value>) {
 pub struct ModelConfig {
     pub default_model: Option<String>,
     pub subagent_model: Option<String>,
+    pub auto_mode_model: Option<String>,
     pub alias_opus: Option<String>,
     pub alias_sonnet: Option<String>,
     pub alias_haiku: Option<String>,
@@ -209,6 +212,7 @@ pub fn read_model_config(fields: &Map<String, Value>) -> ModelConfig {
     ModelConfig {
         default_model: non_empty(fields.get("model").and_then(Value::as_str)),
         subagent_model: env_get(ENV_SUBAGENT),
+        auto_mode_model: env_get(ENV_AUTO_MODE),
         alias_opus: env_get(&alias_env("opus")),
         alias_sonnet: env_get(&alias_env("sonnet")),
         alias_haiku: env_get(&alias_env("haiku")),
@@ -264,6 +268,7 @@ pub fn write_model_config(target: &mut Map<String, Value>, cfg: &ModelConfig, kn
     let mut env = target.get("env").and_then(Value::as_object).cloned().unwrap_or_default();
     let pairs = [
         (ENV_SUBAGENT.to_string(), &cfg.subagent_model),
+        (ENV_AUTO_MODE.to_string(), &cfg.auto_mode_model),
         (alias_env("opus"), &cfg.alias_opus),
         (alias_env("sonnet"), &cfg.alias_sonnet),
         (alias_env("haiku"), &cfg.alias_haiku),
@@ -336,6 +341,7 @@ mod tests {
         let cfg = ModelConfig {
             default_model: Some("gpt-5.1".into()),
             subagent_model: Some("qwen3-coder".into()),
+            auto_mode_model: Some("provider/full-classifier-id".into()),
             alias_sonnet: Some("qwen3-coder".into()),
             picker_models: vec!["gpt-5.1".into(), "qwen3-coder".into()],
             replace_built_in: true,

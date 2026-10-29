@@ -7,7 +7,7 @@
 | 日常代码修改 | `pnpm build`（含类型检查）、`pnpm test:rust` |
 | 单页界面、草稿或关闭确认 | `pnpm verify:ui`：生产构建的独立无头 Edge，受控 IPC 及真实服务读取旧版固定样本；不操作桌面 |
 | 发布产物 | `pnpm tauri build` |
-| 原生配置映射或 Claude CLI 升级 | `pnpm verify:cli`；只检查菜单接受配置、保存实际 ID、往返后请求使用所选模型 |
+| 原生配置映射或 Claude CLI 升级 | `pnpm verify:cli`；检查菜单接受配置、保存实际 ID、往返后请求使用所选模型，以及真实自动审批的选定/默认/忽略覆盖路径（CLI 调试日志与本地 CPA 实收请求对应） |
 | 窗口生命周期或资源开销 | Windows 下 `pnpm measure:resources --report 路径`；生产后台与隐藏窗口，无远程调试或桌面操作 |
 | 窗口、托盘或交互改动 | 使用者按下述短清单人工检查，不运行模拟鼠标的 GUI 自动化 |
 

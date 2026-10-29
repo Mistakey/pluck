@@ -96,7 +96,9 @@ jobs:
       - name: Record expected installed binary
         if: github.ref != 'refs/heads/main'
         run: |
-          (Get-FileHash src-tauri/target/release/pluck.exe -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content .forge/tmp/release/binary.sha256
+          & "$env:ProgramFiles/7-Zip/7z.exe" e ".forge/tmp/release/artifacts/Pluck_$($env:RELEASE_VERSION)_x64-setup.exe" '-o.forge/tmp/release/signed-payload' pluck.exe -r -y
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract the signed installer payload' }
+          (Get-FileHash .forge/tmp/release/signed-payload/pluck.exe -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content .forge/tmp/release/binary.sha256
       - if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:

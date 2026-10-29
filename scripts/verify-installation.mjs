@@ -108,6 +108,13 @@ try {
   gh(["run", "download", process.env.BUILD_RUN, "--repo", repo, "--name", `installed-binary-${version}`, "--dir", path.join(root, "binary")]);
   const previousInfo = validateAssets(previous, previousVersion), candidateInfo = validateAssets(candidate, version);
   report.artifacts = { previous: previousInfo, candidate: candidateInfo };
+  const payloadHash = (directory, releaseVersion) => {
+    const destination = path.join(root, `payload-${releaseVersion}`);
+    execFileSync(path.join(process.env.ProgramFiles, "7-Zip/7z.exe"), ["e", path.join(directory, `Pluck_${releaseVersion}_x64-setup.exe`), `-o${destination}`, "pluck.exe", "-r", "-y"], { windowsHide: true, stdio: "pipe" });
+    return hash(path.join(destination, "pluck.exe"));
+  };
+  report.signedInstallerPayloadHashes = { [previousVersion]: payloadHash(previous, previousVersion), [version]: payloadHash(candidate, version) };
+  report.recordedBuildBinaryHash = fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim();
   // Diagnostic repairs can inspect an identical production tree. Publication must run at
   // the candidate build's exact commit: GitHub's workflow token cannot tag another workflow revision.
   execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", candidateInfo.commit], { windowsHide: true, stdio: "pipe" });
@@ -182,6 +189,7 @@ try {
   const before = await view(installedProcess.pid, installedExe, `当前版本 ${previousVersion}`);
   const registry = ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress");
   report.beforeUpdate = { pid: installedProcess.pid, binarySha256: hash(installedExe), status: before, registry: JSON.parse(registry), processes: processes() };
+  assert.equal(report.beforeUpdate.binarySha256, report.signedInstallerPayloadHashes[previousVersion]);
   record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), currentVersion: previousVersion, ui: before });
 
   if (!diagnosticOnly) {
@@ -245,7 +253,7 @@ try {
     await click(restarted.ProcessId, installedExe, "^设置");
     const after = await view(restarted.ProcessId, installedExe, `当前版本 ${version}`);
     assert(names(after).includes(claude) && names(after).includes(data), "Restart must continue using the isolated existing configuration directories");
-    assert.equal(hash(installedExe), fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim());
+    assert.equal(hash(installedExe), report.signedInstallerPayloadHashes[version]);
     report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
     record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
   }

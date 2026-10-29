@@ -8,12 +8,13 @@ import {
   type ModelView,
   type Status,
   type Mode,
+  type UpdateStatus,
 } from "./api";
 
 export const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 type Connection = { url: string; key: string; revision: string };
-type Action = Mode | "close";
+type Action = Mode | "close" | "update";
 type State = {
   status: Status | null;
   view: ModelView | null;
@@ -25,6 +26,7 @@ type State = {
   confirm: Action | null;
   notice: { text: string; error: boolean } | null;
   viewError: string | null;
+  updates: UpdateStatus | null;
 };
 const connectionFrom = (s: Status): Connection => ({
   url: s.cpaBaseUrl ?? "",
@@ -54,6 +56,7 @@ export function useWorkspace() {
     confirm: null,
     notice: null,
     viewError: null,
+    updates: null,
   };
   const [state, render] = useState(initial);
   const ref = useRef(state);
@@ -61,12 +64,17 @@ export function useWorkspace() {
   const changes = useRef(0);
   const reconciledChanges = useRef(0);
   const alive = useRef(true);
+  const updateVersion = useRef<string | null>(null);
   function patch(p: Partial<State>) {
     ref.current = { ...ref.current, ...p };
     if (alive.current) render(ref.current);
   }
   function error(e: unknown) {
     patch({ notice: { text: errorText(e), error: true } });
+  }
+  function acceptUpdates(updates: UpdateStatus) {
+    if (!ref.current.updates || updates.revision >= ref.current.updates.revision)
+      patch({ updates });
   }
   function acceptStatus(status: Status) {
     const s = ref.current;
@@ -180,6 +188,14 @@ export function useWorkspace() {
       throw new Error(`保存已完成，但重新读取失败：${ref.current.viewError}`);
   }
   async function perform(action: Action) {
+    if (action === "update") {
+      const version = updateVersion.current;
+      if (!version) throw new Error("请重新检查并确认更新。");
+      const result = await api.installUpdate(version);
+      acceptUpdates(result);
+      if (result.error) throw new Error(result.error);
+      return;
+    }
     if (action === "close") {
       await getCurrentWindow().destroy();
       return;
@@ -196,12 +212,16 @@ export function useWorkspace() {
     const s = ref.current;
     if (s.busy) return;
     if (action !== "close" && s.status?.mode === action) return;
+    if (action === "update") {
+      if (!s.updates?.version || s.updates.installBlocked || ["checking", "downloading", "installing"].includes(s.updates.phase)) return;
+      updateVersion.current = s.updates.version;
+    }
     if (action === "cpa" && !s.status?.cpaConfigured) {
       patch({ editing: true });
       return;
     }
     if (modelDirty(s) || connectionDirty(s)) patch({ confirm: action });
-    else void operation("switch", () => perform(action));
+    else void operation(action === "update" ? "update" : "switch", () => perform(action));
   }
   async function finish(save: boolean) {
     const action = ref.current.confirm;
@@ -210,6 +230,9 @@ export function useWorkspace() {
       if (save) {
         if (connectionDirty(ref.current)) await saveConnection();
         if (modelDirty(ref.current)) await saveModels();
+        // 保存后的补读也可能发现并发修改；不得带着未协调草稿开始下载。
+        if (action === "update" && (modelDirty(ref.current) || connectionDirty(ref.current) || ref.current.conflict))
+          throw new Error("配置已变化，请处理保留的修改后再更新。");
       } else {
         // Reload can fail; keep the context and refuse the destructive action.
         await sync(true);
@@ -252,6 +275,13 @@ export function useWorkspace() {
           if (!ref.current.busy) patch({ confirm: "close" });
         }
       }),
+      listen<UpdateStatus>("update-changed", (e) => acceptUpdates(e.payload)).then(async (off) => {
+        try {
+          const updates = await api.updateStatus();
+          if (alive.current) acceptUpdates(updates);
+        } catch (e) { if (alive.current) error(e); }
+        return off;
+      }),
     ];
     return () => {
       alive.current = false;
@@ -266,6 +296,10 @@ export function useWorkspace() {
     patch,
     request,
     finish,
+    checkUpdates: async () => {
+      try { acceptUpdates(await api.checkUpdates()); }
+      catch (e) { error(e); }
+    },
     sync,
     update: (p: Partial<ModelConfig>) =>
       ref.current.draft && patch({ draft: { ...ref.current.draft, ...p } }),

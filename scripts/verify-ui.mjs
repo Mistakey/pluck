@@ -10,6 +10,11 @@ import { chromium } from "playwright-core";
 const out = path.resolve(".forge/tmp/ui");
 fs.mkdirSync(out, { recursive: true });
 const results = [];
+const updateStatus = {
+  revision: 1, currentVersion: "7.6.5", phase: "current", version: null,
+  notes: null, downloaded: 0, total: null, error: null, retry: null, installBlocked: null,
+};
+const availableUpdate = { ...updateStatus, phase: "available", version: "9.0.0", notes: "更新说明：配置与连接继续保留。" };
 const clone = (value) => structuredClone(value);
 const empty = {
   defaultModel: null,
@@ -100,6 +105,7 @@ async function boot(options = {}) {
     destroyed: 0,
     fail: null,
     defer: null,
+    updates: clone(updateStatus),
     ...options,
   };
   page = await browser.newPage({
@@ -117,8 +123,24 @@ async function boot(options = {}) {
       d.started?.();
       return d.promise;
     }
-    if (backend.real) return backend.real(cmd, args);
     if (backend.fail === cmd) throw new Error(`模拟 ${cmd} 失败，输入已保留`);
+    if (cmd === "get_update_status") return clone(backend.updates);
+    if (cmd === "check_updates") {
+      backend.updates = { ...availableUpdate, revision: backend.updates.revision + 1,
+        ...(backend.checkError ? { phase: "error", retry: "check", error: "检查更新失败：网络暂不可用" } : {}),
+      };
+      return clone(backend.updates);
+    }
+    if (cmd === "install_update") {
+      if (args.version !== backend.updates.version) throw new Error("新版信息已变化，请重新确认更新。");
+      backend.updates = { ...backend.updates, revision: backend.updates.revision + 1,
+        phase: backend.installError ? "error" : "installing",
+        retry: backend.installError ? "install" : null,
+        error: backend.installError ? "下载更新失败：网络暂不可用" : null,
+      };
+      return clone(backend.updates);
+    }
+    if (backend.real) return backend.real(cmd, args);
     switch (cmd) {
       case "get_status":
         return clone(backend.status);
@@ -192,10 +214,10 @@ async function boot(options = {}) {
         callbacks.delete(id);
       },
     };
-    window.__testEmit = async (event) => {
+    window.__testEmit = async (event, payload = null) => {
       for (const [id, name] of listeners)
         if (name === event)
-          await callbacks.get(id)?.({ event, id, payload: null });
+          await callbacks.get(id)?.({ event, id, payload });
     };
   });
   await page.goto(url);
@@ -214,11 +236,12 @@ async function poll(fn) {
 }
 const button = (name) =>
   page.getByRole("button", {
-    name: name === "Claude Code" ? /^Claude Code/ : name,
+    name: name === "Claude Code" ? /^Claude Code/ : name === "设置" ? /^设置/ : name,
     exact: true,
   });
 const field = (name) => page.getByLabel(name, { exact: true });
 async function chosen(name, value) {
+  await poll(async () => (await field(name).inputValue()) === value);
   assert.equal(await field(name).inputValue(), value);
 }
 async function emit() {
@@ -817,6 +840,103 @@ try {
       backend.calls.filter((c) => c.cmd === "save_model_config").length,
       0,
     );
+  });
+  await test("更新版本来自服务，自动状态、说明、进度及失败重试可见，重建后保留新版", async () => {
+    await boot();
+    await button("设置").click();
+    await page.getByText("当前版本 7.6.5", { exact: true }).waitFor();
+    assert.equal(backend.calls.filter(c => c.cmd === "install_update").length, 0);
+    backend.checkError = true;
+    await button("检查更新").click();
+    await page.getByText("检查更新失败：网络暂不可用", { exact: true }).waitFor();
+    backend.checkError = false;
+    await button("重试检查").click();
+    await page.getByText(availableUpdate.notes, { exact: true }).waitFor();
+    const snapshot = clone(backend.updates);
+    await boot({ updates: snapshot });
+    await page.getByLabel("发现新版本").waitFor();
+    await button("设置").click();
+    backend.updates = { ...snapshot, revision: snapshot.revision + 1, phase: "downloading", downloaded: 1024, total: 2048 };
+    await page.evaluate(s => window.__testEmit("update-changed", s), backend.updates);
+    assert.equal(await page.getByRole("progressbar").getAttribute("value"), "1024");
+    await page.getByText(/50%/).waitFor();
+    await page.screenshot({ path: path.join(out, "update-progress.png") });
+    backend.updates = { ...snapshot, revision: snapshot.revision + 2, phase: "error", error: "下载更新失败：网络暂不可用", retry: "install" };
+    await page.evaluate(s => window.__testEmit("update-changed", s), backend.updates);
+    await button("重试更新并重启").click();
+    await poll(() => backend.calls.some(c => c.cmd === "install_update"));
+    assert.equal(backend.calls.find(c => c.cmd === "install_update").args.version, "9.0.0");
+  });
+  await test("自动更新事件先到时，晚到的初始读取不覆盖新版", async () => {
+    let release;
+    const promise = new Promise(resolve => { release = resolve; });
+    await boot({ defer: { cmd: "get_update_status", promise } });
+    await page.evaluate(s => window.__testEmit("update-changed", s), { ...availableUpdate, revision: 5 });
+    release({ ...updateStatus, revision: 1 });
+    await button("设置").click();
+    await page.getByText("发现新版 9.0.0", { exact: true }).waitFor();
+    await page.getByText(availableUpdate.notes, { exact: true }).waitFor();
+    assert(!backend.calls.some(c => c.cmd === "install_update"));
+  });
+  await test("更新前两类草稿取消保留、保存成功才允许下载", async () => {
+    await boot({ updates: availableUpdate });
+    await field("默认模型").selectOption("model-b");
+    await button("编辑连接").click();
+    await field("地址").fill("http://127.0.0.1:19222");
+    await field("API Key").fill("isolated-update-input");
+    await button("更新并重启").click();
+    assert.equal(backend.calls.filter(c => c.cmd === "install_update").length, 0);
+    await button("继续编辑").click();
+    await chosen("地址", "http://127.0.0.1:19222");
+    await chosen("API Key", "isolated-update-input");
+    await button("更新并重启").click();
+    await button("保存并更新").click();
+    await poll(() => backend.calls.some(c => c.cmd === "install_update"));
+    assert.deepEqual(backend.calls.filter(c => ["save_cpa", "save_model_config", "install_update"].includes(c.cmd)).map(c => c.cmd), ["save_cpa", "save_model_config", "install_update"]);
+    assert.equal(backend.view.config.defaultModel, "model-b");
+  });
+  await test("更新前明确放弃两类草稿，无保存才继续", async () => {
+    await boot({ updates: availableUpdate });
+    await field("默认模型").selectOption("model-b");
+    await button("编辑连接").click();
+    await field("地址").fill("http://127.0.0.1:19222");
+    await button("更新并重启").click();
+    await button("放弃并更新").click();
+    await poll(() => backend.calls.some(c => c.cmd === "install_update"));
+    assert(!backend.calls.some(c => c.cmd === "save_cpa" || c.cmd === "save_model_config"));
+  });
+  for (const failure of ["save_cpa", "save_model_config", "model-conflict", "connection-conflict"]) {
+    await test(`更新被 ${failure} 阻止，输入保留`, async () => {
+      await boot({ updates: availableUpdate });
+      await field("默认模型").selectOption("model-b");
+      await button("编辑连接").click();
+      await field("地址").fill("http://127.0.0.1:19222");
+      await field("API Key").fill("isolated-update-input");
+      if (failure.startsWith("save_")) backend.fail = failure;
+      if (failure === "model-conflict") backend.view.revision += "external";
+      if (failure === "connection-conflict") backend.status.connectionRevision += "external";
+      await button("更新并重启").click();
+      await button("保存并更新").click();
+      await page.getByRole("dialog", { name: "有未保存的修改" }).waitFor({ state: "hidden" });
+      await poll(() => backend.calls.some(c => c.cmd === "save_cpa"));
+      assert(!backend.calls.some(c => c.cmd === "install_update"));
+      if (failure === "save_cpa" || failure === "connection-conflict") {
+        await chosen("地址", "http://127.0.0.1:19222");
+        await chosen("API Key", "isolated-update-input");
+      } else {
+        await chosen("默认模型", "model-b");
+      }
+    });
+  }
+  await test("下载失败后现有编辑仍可用，重试需再次明确点击", async () => {
+    await boot({ updates: availableUpdate, installError: true });
+    await button("设置").click();
+    await button("更新并重启").click();
+    await page.getByText("下载更新失败：网络暂不可用", { exact: true }).first().waitFor();
+    await button("Claude Code").click();
+    await field("默认模型").selectOption("model-b");
+    await chosen("默认模型", "model-b");
+    assert.equal(backend.calls.filter(c => c.cmd === "install_update").length, 1);
   });
   await test("V5 新控件通过真实服务读取旧版固定样本并保存", async () => {
     const root = fs.mkdtempSync(path.join(out, "legacy-working-"));

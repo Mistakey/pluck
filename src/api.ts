@@ -53,7 +53,23 @@ export interface ModelView {
   fetchedAt: number | null;
 }
 
+export interface UpdateStatus {
+  revision: number;
+  currentVersion: string;
+  phase: "idle" | "checking" | "available" | "current" | "downloading" | "installing" | "error";
+  version: string | null;
+  notes: string | null;
+  downloaded: number;
+  total: number | null;
+  error: string | null;
+  retry: "check" | "install" | null;
+  installBlocked: string | null;
+}
+
 export const api = {
+  updateStatus: () => invoke<UpdateStatus>("get_update_status"),
+  checkUpdates: () => invoke<UpdateStatus>("check_updates"),
+  installUpdate: (version: string) => invoke<UpdateStatus>("install_update", { version }),
   status: () => invoke<Status>("get_status"),
   switchMode: (mode: Mode) => invoke<OpResult>("switch_mode", { mode }),
   saveCpa: (baseUrl: string, apiKey: string | null, revision: string) =>

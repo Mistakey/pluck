@@ -29,7 +29,9 @@ Windows 0.2.0 采用 Claude Code 单页配置界面：通过配置窗口和托�
 
 ## 使用
 
-直接运行 Windows x64 免安装版 `pluck.exe`（Windows 10/11，需要系统 WebView2 运行时）。构建方法见下文；本轮不提供运行时安装向导。
+Windows 10/11 x64 使用 NSIS 当前用户安装包，无需管理员权限，缺少 WebView2 时由标准安装程序引导安装。安装包、签名和应用内更新流程已经实现；公开下载入口、首次正式发布及真实跨版本安装验证由后续发布任务交付，当前没有可用的正式下载地址。构建及维护方法见[发布说明](docs/releases.md)。
+
+已有免安装版先从托盘退出，再手动安装一次安装版。应用标识和数据目录不变，已有连接、Key、列表、模式快照及 Claude 用户配置继续沿用；不要把旧免安装进程的单实例响应当作安装版已启动。
 
 新版产物、SHA-256 与验证记录见 [单页界面交付](docs/verification/single-page.md)。
 
@@ -43,6 +45,10 @@ Windows 0.2.0 采用 Claude Code 单页配置界面：通过配置窗口和托�
 窗口内切换模式或关闭原生窗口前，有未保存修改时可保存后继续、放弃后继续或继续编辑。保存失败或冲突会停止原动作并保留输入。连接弹窗支持 Escape 取消、Tab 循环和关闭后返回焦点；写入期间不接受重复提交或 Escape 丢弃。
 
 确认关闭后 Pluck 留在托盘并释放 WebView；左键单击托盘重新创建配置窗口并读取已保存值，右键可查看状态、切换模式或退出。最小化保留当前编辑。托盘操作仍独立于窗口；托盘切换或外部配置更新会按上述规则与窗口草稿协调。显式退出结束后台。`pluck.exe --hidden` 只启动托盘，不创建 WebView。
+
+正式安装版启动时及每 6 小时检查更新，托盘会显示新版；设置中可手动检查、查看真实包版本和更新说明。只有点击“更新并重启”才下载，未保存的模型和连接修改需先保存或明确放弃，取消、失败或冲突会停止更新并保留未保存输入。检查或下载失败会显示原因并允许重试。更新使用 Tauri 签名校验，验证通过后交给安装程序更新并重启。
+
+本次安装与更新实现的构建、签名和回归证据见[实现验证记录](docs/verification/updates.md)。
 
 ### Pluck 修改什么
 
@@ -73,13 +79,13 @@ CPA 地址、Key、模型列表和各模式的模型快照保存在 `%APPDATA%\c
 
 ## 开发
 
-需要 Node.js 20+、pnpm、Rust（MSVC 工具链）和 [Tauri 的 Windows 依赖](https://v2.tauri.app/start/prerequisites/#windows)。
+需要 Node.js 22.12+、pnpm 10、Rust 1.90+（MSVC 工具链）和 [Tauri 的 Windows 依赖](https://v2.tauri.app/start/prerequisites/#windows)。
 
 ```powershell
 pnpm install
 pnpm tauri dev          # 开发运行
 pnpm tauri build --no-bundle # 构建免安装 src-tauri/target/release/pluck.exe
-pnpm tauri build            # 另行构建 NSIS 安装包
+pnpm tauri build            # NSIS + 签名更新产物，需要签名配置，见发布说明
 ```
 
 ## 验证
@@ -88,6 +94,8 @@ pnpm tauri build            # 另行构建 NSIS 安装包
 pnpm typecheck
 pnpm test:rust          # 日常回归：核心配置流程与必要失败保护，全程临时目录
 pnpm verify:ui          # 生产 UI 的无头布局/草稿/关闭边界与旧数据检查（需要 Edge）
+pnpm verify:updates     # 生产后台自动检查、隐藏重建、状态保留；无下载或安装
+pnpm test:release       # 版本与完整发布门槛，使用受控 GitHub CLI 边界
 pnpm verify:cli         # 按需：配置映射或 Claude 升级后的原生菜单兼容检查
 pnpm measure:resources  # 按需：Windows release 后台与隐藏窗口的资源回收测量
 ```

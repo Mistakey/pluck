@@ -183,7 +183,7 @@ try {
   }, 120000);
   assert.equal(available.installBlocked, null);
   record("fully published version discovered by actual installed client", { client: available });
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: /^设置/ }).click();
   await page.getByRole("button", { name: "更新并重启", exact: true }).click();
   // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
   // and exits. No IPC response or installer is stubbed. Reconnect only after a new process exists.

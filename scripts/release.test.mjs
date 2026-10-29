@@ -66,7 +66,7 @@ test("publishing stays draft on upload failure or incomplete readback; complete 
 test("only an explicit workflow dispatch can publish", () => {
   const workflow = fs.readFileSync(".github/workflows/release.yml", "utf8");
   assert.match(workflow, /on:\s*\n\s+workflow_dispatch:/);
-  const triggers = workflow.split("on:\n")[1].split("\npermissions:")[0];
+  const triggers = workflow.split(/on:\r?\n/)[1].split(/\r?\npermissions:/)[0];
   assert.doesNotMatch(triggers, /^\s+(push|pull_request|release|schedule):/m);
   assert.match(workflow, /if: github.ref == 'refs\/heads\/main'/);
 });

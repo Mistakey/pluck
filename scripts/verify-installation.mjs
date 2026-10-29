@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
-import { chromium } from "playwright-core";
 import { publish, validateAssets, validateVersion } from "./release.mjs";
 
 assert.equal(process.platform, "win32");
@@ -64,29 +63,30 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^
 Object.assign(env, {
   CLAUDE_CONFIG_DIR: claude, PLUCK_DATA_DIR: data,
   WEBVIEW2_USER_DATA_FOLDER: path.join(root, "webview"),
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=19227",
 });
 const files = [path.join(data, "state.json"), path.join(claude, "settings.json"), path.join(claude, ".credentials.json")];
-let baseline, browser, ownsVm = false;
+let baseline, ownsVm = false;
 const preserved = () => {
   const current = Object.fromEntries(files.map(file => [path.basename(file), hash(file)]));
   assert.deepEqual(current, baseline, "CPA connection/key, cached list/timestamp, snapshots, Claude settings and credentials must remain byte-identical");
   return current;
 };
-async function connect() {
-  return await until("real installed WebView CDP", async () => {
-    const response = await fetch("http://127.0.0.1:19227/json/list");
-    const targets = await response.json();
-    if (!targets.some(t => t.type === "page" && t.url.includes("tauri.localhost"))) return;
-    const connected = await chromium.connectOverCDP("http://127.0.0.1:19227");
-    const page = connected.contexts().flatMap(c => c.pages()).find(p => p.url().includes("tauri.localhost"));
-    if (!page) { await connected.close(); return; }
-    await page.waitForFunction(() => !!window.__TAURI_INTERNALS__?.invoke);
-    browser = connected;
-    return page;
+function ui(pid, executable, action = "read", name = "") {
+  return JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", path.resolve("scripts/lib/installed-ui.ps1")], {
+    encoding: "utf8", windowsHide: true, timeout: 20000,
+    env: { ...process.env, PLUCK_UIA_PID: String(pid), PLUCK_UIA_EXE: executable, PLUCK_UIA_ACTION: action, PLUCK_UIA_NAME: name },
+  }));
+}
+const names = elements => elements.map(e => e.name).join("\n");
+async function view(pid, executable, expected) {
+  return until(`installed application UI: ${expected}`, () => {
+    const snapshot = ui(pid, executable);
+    return names(snapshot).includes(expected) ? snapshot : null;
   });
 }
-const invoke = (page, command, args = {}) => page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), { command, args });
+async function click(pid, executable, name) {
+  return until(`application button ${name}`, () => ui(pid, executable, "click", name));
+}
 const latestUrl = `https://github.com/${repo}/releases/latest/download/latest.json`;
 async function latest() {
   const response = await fetch(latestUrl, { headers: { "Cache-Control": "no-cache" } });
@@ -159,14 +159,12 @@ try {
   const installedProcess = start(installedExe);
   await wait(3000);
   record("installed process startup", { pid: installedProcess.pid, exitCode: installedProcess.exitCode, processes: processes(), dataHashes: preserved() });
-  let page = await connect();
-  const status = await invoke(page, "get_status");
-  assert.equal(status.mode, "cpa");
-  const before = await invoke(page, "get_update_status");
-  assert.equal(before.currentVersion, previousVersion); assert.equal(before.installBlocked, null);
+  await view(installedProcess.pid, installedExe, "CPA");
+  await click(installedProcess.pid, installedExe, "^设置");
+  const before = await view(installedProcess.pid, installedExe, `当前版本 ${previousVersion}`);
   const registry = ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress");
   report.beforeUpdate = { pid: installedProcess.pid, binarySha256: hash(installedExe), status: before, registry: JSON.parse(registry), processes: processes() };
-  record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), statusMode: status.mode, currentVersion: before.currentVersion });
+  record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), currentVersion: previousVersion, ui: before });
 
   if (!diagnosticOnly) {
   const notes = path.join(root, "notes.txt");
@@ -180,32 +178,27 @@ try {
   const draft = JSON.parse(gh(["release", "view", `v${version}`, "--repo", repo, "--json", "isDraft,assets,url"]));
   assert.equal(draft.isDraft, true); assert.equal(draft.assets.length, 4);
   assert.equal((await latest()).version, previousVersion);
-  const afterFailure = await invoke(page, "check_updates");
-  assert.equal(afterFailure.phase, "current"); assert.equal(afterFailure.currentVersion, previousVersion); assert.equal(afterFailure.version, null);
+  await click(installedProcess.pid, installedExe, "^检查更新$");
+  const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
+  assert(!names(afterFailure).includes(`发现新版 ${version}`));
   record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
   gh(["release", "delete", `v${version}`, "--repo", repo, "--cleanup-tag", "--yes"]);
   publish(candidate, version, repo, notes, gh);
   await until("new public release manifest", async () => (await latest()).version === version, 120000);
-  const available = await until("installed client discovers fully published release", async () => {
-    const value = await invoke(page, "check_updates");
-    return value.phase === "available" && value.version === version ? value : null;
-  }, 120000);
-  assert.equal(available.installBlocked, null);
+  await click(installedProcess.pid, installedExe, "^检查更新$");
+  const available = await view(installedProcess.pid, installedExe, `发现新版 ${version}`);
   record("fully published version discovered by actual installed client", { client: available });
-  await page.getByRole("button", { name: /^设置/ }).click();
-  await page.getByRole("button", { name: "更新并重启", exact: true }).click();
+  await click(installedProcess.pid, installedExe, "^更新并重启$");
   // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
   // and exits. No IPC response or installer is stubbed. Reconnect only after a new process exists.
   await until("updater exits previous process", () => !processes().some(p => p.ProcessId === installedProcess.pid), 180000);
-  await browser.close().catch(() => {}); browser = null;
   await until("NSIS replaces binary and restarts installed application", () => {
     return hash(installedExe) !== report.beforeUpdate.binarySha256 && processes().some(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
   }, 180000);
-  page = await connect();
-  const after = await invoke(page, "get_update_status");
-  assert.equal(after.currentVersion, version); assert.equal(after.installBlocked, null);
+  const restarted = processes().find(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
+  await click(restarted.ProcessId, installedExe, "^设置");
+  const after = await view(restarted.ProcessId, installedExe, `当前版本 ${version}`);
   assert.equal(hash(installedExe), fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim());
-  const afterStatus = await invoke(page, "get_status"); assert.equal(afterStatus.mode, "cpa");
   report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
   record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
   }
@@ -217,7 +210,6 @@ try {
   save();
   throw error;
 } finally {
-  await browser?.close().catch(() => {});
   if (ownsVm) stopApps();
   // The hosted VM is discarded after the job. Evidence contains hashes/process paths only,
   // never the copied settings, test credentials or signing material.

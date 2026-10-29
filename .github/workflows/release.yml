@@ -11,6 +11,13 @@ on:
         description: 'Release notes shown in the application'
         required: true
         type: string
+      verify_installation:
+        description: 'Verify portable migration and publish/update the signed candidate on an isolated hosted Windows runner'
+        type: boolean
+        default: false
+      build_run:
+        description: 'Successful candidate build run ID (required for installation verification)'
+        type: string
 
 permissions:
   contents: write
@@ -21,7 +28,7 @@ concurrency:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ !inputs.verify_installation }}
     runs-on: windows-latest
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -60,6 +67,60 @@ jobs:
       - name: Verify artifact with the runtime updater
         run: cargo run --example verify_update --manifest-path src-tauri/Cargo.toml -- .forge/tmp/release/artifacts/latest.json ".forge/tmp/release/artifacts/Pluck_$($env:RELEASE_VERSION)_x64-setup.exe"
       - name: Upload draft, verify all assets, then publish
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/release.mjs publish
+      - name: Retain signed candidate for actual installation verification
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release-${{ inputs.version }}
+          path: .forge/tmp/release/artifacts/*
+          retention-days: 30
+      - name: Record expected installed binary
+        if: github.ref != 'refs/heads/main'
+        run: |
+          (Get-FileHash src-tauri/target/release/pluck.exe -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content .forge/tmp/release/binary.sha256
+      - if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installed-binary-${{ inputs.version }}
+          path: .forge/tmp/release/binary.sha256
+          retention-days: 30
+
+  installation:
+    if: inputs.verify_installation
+    runs-on: windows-latest
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      BUILD_RUN: ${{ inputs.build_run }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/checkout@v4
+        with:
+          ref: d6cca12
+          path: .forge/tmp/portable-source
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build the existing portable version without changing its source
+        working-directory: .forge/tmp/portable-source
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build --no-bundle --ci
+      - name: Migrate, exercise failed draft, publish candidate, and update through the installed UI
+        run: node scripts/verify-installation.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: installation-evidence-${{ inputs.version }}
+          path: .forge/tmp/installation/evidence/*
+          retention-days: 90

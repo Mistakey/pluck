@@ -17,11 +17,12 @@ const repo = process.env.GITHUB_REPOSITORY;
 assert.equal(repo, "Mistakey/pluck");
 const previousVersion = "0.2.0";
 const diagnosticOnly = process.env.DIAGNOSE_ONLY === "true";
+const publishedOnly = process.env.VERIFY_PUBLISHED === "true";
 const root = path.resolve(".forge/tmp/installation");
 assert(!fs.existsSync(root), "Use a fresh hosted VM for every verification");
 const evidence = path.join(root, "evidence");
 fs.mkdirSync(evidence, { recursive: true });
-const report = { startedAt: new Date().toISOString(), repository: repo, run: process.env.GITHUB_RUN_ID, candidateBuild: process.env.BUILD_RUN, diagnosticOnly, checks: [] };
+const report = { startedAt: new Date().toISOString(), repository: repo, run: process.env.GITHUB_RUN_ID, candidateBuild: process.env.BUILD_RUN, diagnosticOnly, publishedOnly, checks: [] };
 const save = () => fs.writeFileSync(path.join(evidence, "report.json"), JSON.stringify(report, null, 2));
 const record = (name, detail) => { report.checks.push({ name, at: new Date().toISOString(), ...detail }); save(); console.log(`PASS ${name}`); };
 const gh = args => execFileSync("gh", args, { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -112,10 +113,10 @@ try {
   execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", candidateInfo.commit], { windowsHide: true, stdio: "pipe" });
   execFileSync("git", ["diff", "--exit-code", candidateInfo.commit, "HEAD", "--", "src", "src-tauri", "package.json", "pnpm-lock.yaml", "scripts/release.mjs"], { windowsHide: true, stdio: "pipe" });
   report.verifierCommit = process.env.GITHUB_SHA;
-  if (!diagnosticOnly) assert.equal(candidateInfo.commit, process.env.GITHUB_SHA, "Build and publish/verify the candidate at the same workflow commit");
+  if (!diagnosticOnly && !publishedOnly) assert.equal(candidateInfo.commit, process.env.GITHUB_SHA, "Build and publish/verify the candidate at the same workflow commit");
   const build = JSON.parse(gh(["run", "view", process.env.BUILD_RUN, "--repo", repo, "--json", "conclusion,headSha"]));
   assert.equal(build.conclusion, "success"); assert.equal(build.headSha, candidateInfo.commit);
-  assert.equal((await latest()).version, previousVersion);
+  assert.equal((await latest()).version, publishedOnly ? version : previousVersion);
   for (const dir of ["claude", "data"]) fs.cpSync(path.resolve("docs/verification/fixtures/legacy-cpa", dir), path.join(root, dir), { recursive: true });
   baseline = Object.fromEntries(files.map(file => [path.basename(file), hash(file)]));
   record("downloaded signed real artifacts and copied legacy data", { previousInfo, candidateInfo, dataHashes: baseline });
@@ -178,28 +179,53 @@ try {
   record(diagnosticOnly ? "installed application diagnostics" : "portable-to-current-user installation preserved all legacy data", { dataHashes: preserved(), currentVersion: previousVersion, ui: before });
 
   if (!diagnosticOnly) {
-    const notes = path.join(root, "notes.txt");
-    fs.writeFileSync(notes, JSON.parse(fs.readFileSync(path.join(candidate, "latest.json"))).notes);
-    // Use the production publication function and real GitHub API. Omit one uploaded asset to
-    // reproduce an interrupted upload, then let production readback reject the incomplete draft.
-    assert.throws(() => publish(candidate, version, repo, notes, args => {
-      if (args[0] === "release" && args[1] === "upload") args = args.filter(a => a !== path.join(candidate, "latest.json"));
-      return gh(args);
-    }), /incomplete/);
-    const draft = JSON.parse(gh(["release", "view", `v${version}`, "--repo", repo, "--json", "isDraft,assets,url"]));
-    assert.equal(draft.isDraft, true); assert.equal(draft.assets.length, 4);
-    assert.equal((await latest()).version, previousVersion);
-    await click(installedProcess.pid, installedExe, "^检查更新$");
-    const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
-    assert(!names(afterFailure).includes(`发现新版 ${version}`));
-    record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
-    // GitHub has not created a tag for this new draft. The production gate checked
-    // that no version tag existed before it; --cleanup-tag fails on that absent ref.
-    gh(["release", "delete", `v${version}`, "--repo", repo, "--yes"]);
-    publish(candidate, version, repo, notes, gh);
+    if (!publishedOnly) {
+      const notes = path.join(root, "notes.txt");
+      fs.writeFileSync(notes, JSON.parse(fs.readFileSync(path.join(candidate, "latest.json"))).notes);
+      // Use the production publication function and real GitHub API. Omit one uploaded asset to
+      // reproduce an interrupted upload, then let production readback reject the incomplete draft.
+      assert.throws(() => publish(candidate, version, repo, notes, args => {
+        if (args[0] === "release" && args[1] === "upload") args = args.filter(a => a !== path.join(candidate, "latest.json"));
+        return gh(args);
+      }), /incomplete/);
+      const draft = JSON.parse(gh(["release", "view", `v${version}`, "--repo", repo, "--json", "isDraft,assets,url"]));
+      assert.equal(draft.isDraft, true); assert.equal(draft.assets.length, 4);
+      assert.equal((await latest()).version, previousVersion);
+      await click(installedProcess.pid, installedExe, "^检查更新$");
+      const afterFailure = await view(installedProcess.pid, installedExe, "已是最新版本");
+      assert(!names(afterFailure).includes(`发现新版 ${version}`));
+      record("incomplete real draft not announced to the actual installed client", { draft, latestVersion: previousVersion, client: afterFailure });
+      // GitHub has not created a tag for this new draft. The production gate checked
+      // that no version tag existed before it; --cleanup-tag fails on that absent ref.
+      gh(["release", "delete", `v${version}`, "--repo", repo, "--yes"]);
+      publish(candidate, version, repo, notes, gh);
+    } else {
+      assert.match(process.env.PUBLICATION_RUN ?? "", /^\d+$/);
+      const priorDir = path.join(root, "publication-proof");
+      gh(["run", "download", process.env.PUBLICATION_RUN, "--repo", repo, "--name", `installation-evidence-${version}`, "--dir", priorDir]);
+      const prior = JSON.parse(fs.readFileSync(path.join(priorDir, "report.json")));
+      assert.equal(prior.candidateBuild, process.env.BUILD_RUN);
+      assert.deepEqual(prior.artifacts.candidate, candidateInfo);
+      assert(prior.checks.some(c => c.name === "incomplete real draft not announced to the actual installed client"));
+      const released = path.join(root, "released");
+      gh(["release", "download", `v${version}`, "--repo", repo, "--dir", released]);
+      assert.deepEqual(validateAssets(released, version), candidateInfo);
+      report.publicationEvidenceRun = process.env.PUBLICATION_RUN;
+      record("already published candidate matches signed build and prior real draft proof", { source: candidateInfo.commit, publicationEvidenceRun: process.env.PUBLICATION_RUN });
+    }
     await until("new public release manifest", async () => (await latest()).version === version, 120000);
-    await click(installedProcess.pid, installedExe, "^检查更新$");
-    const available = await view(installedProcess.pid, installedExe, `发现新版 ${version}`);
+    let lastCheck = 0;
+    const available = await until("installed client discovers fully published release", async () => {
+      const snapshot = ui(installedProcess.pid, installedExe);
+      if (names(snapshot).replace(/\s+/g, "").includes(`发现新版${version}`)) return snapshot;
+      // A newly published GitHub latest redirect can still return the previous version.
+      // Exercise the existing manual retry after its request completes; do not alter production HTTP behavior.
+      if (Date.now() - lastCheck > 10000 && snapshot.some(e => e.name === "检查更新" && e.enabled)) {
+        ui(installedProcess.pid, installedExe, "click", "^检查更新$");
+        lastCheck = Date.now();
+      }
+      return null;
+    }, 10 * 60000);
     record("fully published version discovered by actual installed client", { client: available });
     await click(installedProcess.pid, installedExe, "^更新并重启$");
     // The real UI requests the real backend, which downloads/verifies the package, starts NSIS
@@ -209,8 +235,10 @@ try {
       return hash(installedExe) !== report.beforeUpdate.binarySha256 && processes().some(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
     }, 180000);
     const restarted = processes().find(p => p.ExecutablePath?.toLowerCase() === installedExe.toLowerCase());
+    await until("restarted client loads the existing CPA configuration", () => ui(restarted.ProcessId, installedExe).some(e => e.name === "CPA"));
     await click(restarted.ProcessId, installedExe, "^设置");
     const after = await view(restarted.ProcessId, installedExe, `当前版本 ${version}`);
+    assert(names(after).includes(claude) && names(after).includes(data), "Restart must continue using the isolated existing configuration directories");
     assert.equal(hash(installedExe), fs.readFileSync(path.join(root, "binary/binary.sha256"), "utf8").trim());
     report.afterUpdate = { status: after, binarySha256: hash(installedExe), processes: processes(), registry: JSON.parse(ps("Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Pluck' | Select-Object InstallLocation,MainBinaryName,DisplayVersion | ConvertTo-Json -Compress")) };
     record("real in-app NSIS replacement and restart preserved every legacy data file", { fromVersion: previousVersion, toVersion: version, dataHashes: preserved() });
@@ -219,6 +247,9 @@ try {
 } catch (error) {
   report.passed = false; report.error = error.stack; save();
   report.failureProcesses = processes();
+  for (const appProcess of report.failureProcesses) {
+    try { ui(appProcess.ProcessId, appProcess.ExecutablePath); } catch (readError) { report.failureUiError = readError.message; }
+  }
   report.webviewProcesses = JSON.parse(ps("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | Where-Object Name -Like '*webview*' | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine)"));
   save();
   throw error;

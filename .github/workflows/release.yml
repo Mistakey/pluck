@@ -25,6 +25,13 @@ on:
       portable_run:
         description: 'Reuse the fixed legacy binary from a previous successful portable-build step (optional)'
         type: string
+      verify_published:
+        description: 'Continue installation verification against an already published candidate; no publication'
+        type: boolean
+        default: false
+      publication_run:
+        description: 'Prior run containing the real incomplete-draft proof (required with verify_published)'
+        type: string
 
 permissions:
   actions: read
@@ -105,6 +112,8 @@ jobs:
       BUILD_RUN: ${{ inputs.build_run }}
       DIAGNOSE_ONLY: ${{ inputs.diagnose_only }}
       LEGACY_BUILD_RUN: ${{ inputs.portable_run }}
+      VERIFY_PUBLISHED: ${{ inputs.verify_published }}
+      PUBLICATION_RUN: ${{ inputs.publication_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

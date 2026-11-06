@@ -370,10 +370,14 @@ export default function App() {
                 <small role="status">
                   {w.busy === "switch" ? "切换中…" : ""}
                 </small>
+                <span className="sr-only" id="mode-hint">
+                  点击即写入 Claude Code 用户配置，重新打开 CLI 后生效
+                </span>
                 <div
                   className="segmented"
                   role="group"
                   aria-label="Claude Code 使用方式"
+                  aria-describedby="mode-hint"
                   onKeyDown={(e) => {
                     const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
                     if (!keys.includes(e.key)) return;

@@ -206,9 +206,11 @@ export function useWorkspace() {
       editing: false,
       notice: { text: r.message, error: false },
     });
-    // A first connection has no list yet: fetch it now, which also shows
+    // A first or moved connection: fetch the list now, which also shows
     // whether the address and key work.
-    if (ref.current.view?.models.length || !r.status.cpaConfigured) return;
+    const moved = (s.status.cpaBaseUrl ?? "") !== (r.status.cpaBaseUrl ?? "");
+    if (!r.status.cpaConfigured || (ref.current.view?.models.length && !moved))
+      return;
     try {
       const count = await fetchCatalog();
       if (count !== null)

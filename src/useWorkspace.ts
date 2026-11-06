@@ -5,6 +5,7 @@ import {
   api,
   errorText,
   type ModelConfig,
+  type ModelInfo,
   type ModelView,
   type Status,
   type Mode,
@@ -28,6 +29,25 @@ type State = {
   viewError: string | null;
   updates: UpdateStatus | null;
 };
+const RELAUNCH = "重新打开 Claude Code CLI 后生效。";
+// Say what was written instead of a generic success line. While CPA is not
+// in use the service stores the CPA preset only; it applies on switching.
+function savedSummary(
+  config: ModelConfig,
+  models: ModelInfo[],
+  live: boolean,
+): string {
+  const name = (id: string) =>
+    models.find((m) => m.id === id)?.displayName?.trim() || id;
+  const menu = config.pickerModels.length;
+  return [
+    live ? "已保存：" : "已保存到 CPA 设置：",
+    config.defaultModel ? `默认 ${name(config.defaultModel)}` : "默认模型未指定",
+    menu ? `，/model 菜单 ${menu} 项` : "，未配置 /model 菜单",
+    config.replaceBuiltIn && menu ? "（隐藏内置）" : "",
+    live ? `。${RELAUNCH}` : "。切换到 CPA 后生效。",
+  ].join("");
+}
 const connectionFrom = (s: Status): Connection => ({
   url: s.cpaBaseUrl ?? "",
   key: "",
@@ -140,6 +160,25 @@ export function useWorkspace() {
       patch({ busy: null });
     }
   }
+  // Refresh is a catalog operation, never a new editing baseline.
+  // Returns the model count, or null when a newer operation superseded it.
+  async function fetchCatalog() {
+    const token = epoch.current;
+    const v = await api.refreshModels();
+    if (token !== epoch.current) return null;
+    const current = ref.current;
+    if (current.view)
+      patch({
+        view: { ...current.view, models: v.models, fetchedAt: v.fetchedAt },
+        conflict:
+          current.conflict ||
+          (modelDirty(current) &&
+            (current.view.revision !== v.revision ||
+              current.view.source !== v.source)),
+      });
+    else acceptView(v);
+    return v.models.length;
+  }
   async function saveConnection() {
     const s = ref.current,
       c = s.connection;
@@ -167,6 +206,25 @@ export function useWorkspace() {
       editing: false,
       notice: { text: r.message, error: false },
     });
+    // A first or moved connection: fetch the list now, which also shows
+    // whether the address and key work.
+    const moved = (s.status.cpaBaseUrl ?? "") !== (r.status.cpaBaseUrl ?? "");
+    if (!r.status.cpaConfigured || (ref.current.view?.models.length && !moved))
+      return;
+    try {
+      const count = await fetchCatalog();
+      if (count !== null)
+        patch({
+          notice: { text: `${r.message} 已获取 ${count} 个模型。`, error: false },
+        });
+    } catch (e) {
+      patch({
+        notice: {
+          text: `连接已保存，但获取模型列表失败：${errorText(e)}`,
+          error: true,
+        },
+      });
+    }
   }
   async function saveModels() {
     const { view, draft, conflict } = ref.current;
@@ -181,7 +239,10 @@ export function useWorkspace() {
     patch({
       status: r.status,
       view: { ...view, config: draft },
-      notice: { text: r.message, error: false },
+      notice: {
+        text: savedSummary(draft, view.models, r.status.mode === "cpa"),
+        error: false,
+      },
     });
     await sync();
     if (ref.current.viewError)
@@ -203,7 +264,10 @@ export function useWorkspace() {
     const r = await api.switchMode(action);
     patch({
       status: r.status,
-      notice: { text: r.message, error: false },
+      notice: {
+        text: `已切换到${action === "cpa" ? " CPA" : "官方订阅"}。${RELAUNCH}`,
+        error: false,
+      },
       editing: false,
     });
     await sync(true);
@@ -273,6 +337,10 @@ export function useWorkspace() {
         ) {
           e.preventDefault();
           if (!ref.current.busy) patch({ confirm: "close" });
+          else
+            patch({
+              notice: { text: "正在处理，完成后再关闭窗口。", error: false },
+            });
         }
       }),
       listen<UpdateStatus>("update-changed", (e) => acceptUpdates(e.payload)).then(async (off) => {
@@ -320,24 +388,9 @@ export function useWorkspace() {
     reloadModels: () => operation("reload", () => sync(true)),
     refresh: () =>
       operation("refresh", async () => {
-        const token = epoch.current;
-        const v = await api.refreshModels();
-        if (token !== epoch.current) return;
-        // Refresh is a catalog operation, never a new editing baseline.
-        const current = ref.current;
-        if (current.view)
-          patch({
-            view: { ...current.view, models: v.models, fetchedAt: v.fetchedAt },
-            conflict:
-              current.conflict ||
-              (modelDirty(current) &&
-                (current.view.revision !== v.revision ||
-                  current.view.source !== v.source)),
-          });
-        else acceptView(v);
-        patch({
-          notice: { text: `已获取 ${v.models.length} 个模型。`, error: false },
-        });
+        const count = await fetchCatalog();
+        if (count !== null)
+          patch({ notice: { text: `已获取 ${count} 个模型。`, error: false } });
       }),
   };
 }

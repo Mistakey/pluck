@@ -141,6 +141,10 @@ impl Service {
         self.store.path()
     }
 
+    pub fn claude_dir(&self) -> &Path {
+        &self.claude_dir
+    }
+
     fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
         self.lock.lock().unwrap_or_else(|e| e.into_inner())
     }

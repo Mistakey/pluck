@@ -81,6 +81,8 @@ export const api = {
   refreshModels: () => invoke<ModelView>("refresh_models"),
   saveModelConfig: (config: ModelConfig, revision: string) =>
     invoke<OpResult>("save_model_config", { config, revision }),
+  revealLocation: (target: "settings" | "data" | "config") =>
+    invoke<void>("reveal_location", { target }),
 };
 
 export function errorText(e: unknown): string {

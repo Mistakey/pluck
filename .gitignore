@@ -14,3 +14,8 @@ node_modules/
 dist/
 src-tauri/target/
 src-tauri/gen/
+
+# Impeccable：只提交共享配置和 DESIGN.md 的侧车文件；评审记录、本机配置和缓存不提交
+.impeccable/*
+!.impeccable/config.json
+!.impeccable/design.json

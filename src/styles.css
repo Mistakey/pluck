@@ -419,7 +419,7 @@ small {
 .view-switch button {
   padding: 0 10px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: none;
   font-size: 12px;
   color: var(--secondary);

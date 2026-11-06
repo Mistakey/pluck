@@ -138,6 +138,7 @@ export default function App() {
   const [menuRows, setMenuRows] = useState<string[] | null>(null);
   const onlySelected = menuRows !== null;
   const [activeRow, setActiveRow] = useState<string | null>(null);
+  const [moved, setMoved] = useState("");
   const [showKey, setShowKey] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const { status, view, draft } = w;
@@ -223,16 +224,21 @@ export default function App() {
     else next.delete(id);
     choose(next);
   }
-  function move(id: string, delta: -1 | 1) {
+  function move(id: string, to: number) {
     const i = menuSelected.indexOf(id);
-    const j = i + delta;
-    if (!menuRows || i < 0 || j < 0 || j >= menuSelected.length) return;
-    const order = [...menuOrder];
-    const a = order.indexOf(menuSelected[i]);
-    const b = order.indexOf(menuSelected[j]);
-    [order[a], order[b]] = [order[b], order[a]];
+    const j = Math.max(0, Math.min(menuSelected.length - 1, to));
+    if (!menuRows || i < 0 || i === j) return;
+    const items = [...menuSelected];
+    items.splice(j, 0, ...items.splice(i, 1));
+    // Selected rows take the new order; unchecked rows keep their slots.
+    let k = 0;
+    const order = menuOrder.map((x) => (selected.has(x) ? items[k++] : x));
     setMenuRows(order);
     w.update({ pickerModels: order.filter((x) => selected.has(x)) });
+    const option = optionById.get(id);
+    setMoved(
+      `${option ? modelName(option) : id} 已移到第 ${j + 1} 位，共 ${items.length} 项`,
+    );
   }
   async function reveal(target: "settings" | "data" | "config") {
     try {
@@ -281,13 +287,22 @@ export default function App() {
                   ? "使用原生审批默认"
                   : "不指定"}
           </option>
-          {options.map((m) => (
-            <option key={m.id} value={m.id} title={m.id}>
-              {modelName(m)}
-              {modelName(m) !== m.id ? ` · ${m.id}` : ""}
-              {m.missing ? " · 列表外" : ""}
-            </option>
-          ))}
+          {[
+            ["已在 /model 菜单", options.filter((m) => selected.has(m.id))],
+            ["其他模型", options.filter((m) => !selected.has(m.id))],
+          ].map(([group, list]) =>
+            (list as typeof options).length ? (
+              <optgroup key={group as string} label={group as string}>
+                {(list as typeof options).map((m) => (
+                  <option key={m.id} value={m.id} title={m.id}>
+                    {modelName(m)}
+                    {modelName(m) !== m.id ? ` · ${m.id}` : ""}
+                    {m.missing ? " · 列表外" : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null,
+          )}
         </select>
       </label>
     );
@@ -430,7 +445,7 @@ export default function App() {
               <code title={status?.cpaBaseUrl ?? ""}>
                 {status?.cpaBaseUrl ?? "尚未配置连接"}
               </code>
-              {status?.mode === "official" && status.cpaConfigured && (
+              {status?.cpaConfigured && status.mode !== "cpa" && (
                 <span className="neutral-badge">未启用</span>
               )}
               <button
@@ -491,8 +506,8 @@ export default function App() {
                     {!status
                       ? "读取中…"
                       : status.credentialsPresent
-                        ? "已检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。"
-                        : "未检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。"}
+                        ? "已检测到"
+                        : "未检测到"}
                   </span>
                 </div>
               </div>
@@ -522,10 +537,6 @@ export default function App() {
                 修改后请重新打开 Claude Code CLI。项目级设置和启动参数仍按原生规则优先。
               </p>
             </section>
-            <section>
-              <h2>关于</h2>
-              <p>Pluck · Claude Code 配置管理 · {w.updates?.currentVersion ?? "读取中…"}</p>
-            </section>
           </div>
         ) : (
           <>
@@ -552,12 +563,13 @@ export default function App() {
               </div>
             )}
             {status?.mode === "other" && (
-              <div className="state-error" role="alert">
+              <div className="state-warning" role="alert">
                 <strong>当前使用其他连接</strong>
                 <p>
                   {status.otherBaseUrl ?? "仅鉴权变量"}。Pluck
-                  不会自动覆盖。如需将它作为 CPA，请明确保存该连接。
+                  不会覆盖它，官方 / CPA 切换已停用。如需将它作为 CPA，请明确保存该连接。
                 </p>
+                <div className="state-actions">
                 {status.otherBaseUrl && (
                   <button
                     className="button"
@@ -575,6 +587,21 @@ export default function App() {
                     将此地址保存为 CPA
                   </button>
                 )}
+                  <button
+                    className="button"
+                    disabled={!!w.busy}
+                    onClick={() => void w.sync()}
+                  >
+                    重新读取
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => void reveal("settings")}
+                  >
+                    <Icon name="folder" />
+                    打开所在文件夹
+                  </button>
+                </div>
               </div>
             )}
             {w.conflict && (
@@ -642,33 +669,57 @@ export default function App() {
                           if (e.key === "Escape" && search) {
                             e.preventDefault();
                             setSearch("");
+                          } else if (e.key === "ArrowDown") {
+                            const first = document.querySelector<HTMLInputElement>(
+                              ".model-row > input",
+                            );
+                            if (!first) return;
+                            e.preventDefault();
+                            first.focus();
                           }
                         }}
                       />
                     </div>
-                    <button
-                      className={`filter-button ${onlySelected ? "active" : ""}`}
-                      aria-pressed={onlySelected}
-                      onClick={() => setMenuRows(onlySelected ? null : [...picker])}
-                    >
-                      已选 {selected.size}
-                    </button>
+                    <div className="view-switch" role="group" aria-label="列表视图">
+                      <button
+                        aria-pressed={!onlySelected}
+                        onClick={() => setMenuRows(null)}
+                      >
+                        全部
+                      </button>
+                      <button
+                        aria-pressed={onlySelected}
+                        onClick={() => onlySelected || setMenuRows([...picker])}
+                      >
+                        菜单顺序 {selected.size}
+                      </button>
+                    </div>
                   </div>
-                  <div className="model-rows" data-testid="model-list">
+                  <div
+                    className="model-rows"
+                    data-testid="model-list"
+                    role="group"
+                    aria-label={onlySelected ? "/model 菜单顺序" : "模型菜单"}
+                  >
                     {visible.length ? (
                       visible.map((m, i) => {
                         const name = modelName(m);
-                        const tag = m.missing
-                          ? "列表外"
-                          : draft?.defaultModel === m.id
-                            ? "默认"
-                            : draft?.subagentModel === m.id
-                              ? "子代理"
-                              : null;
+                        const tag =
+                          [
+                            m.missing && "列表外",
+                            draft?.defaultModel === m.id && "默认",
+                            draft?.subagentModel === m.id && "子代理",
+                            draft?.autoModeModel === m.id && "自动审批",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || null;
                         const describedBy =
                           [
                             name !== m.id && `model-id-${i}`,
                             tag && `model-tag-${i}`,
+                            onlySelected &&
+                              selected.has(m.id) &&
+                              `model-pos-${i}`,
                           ]
                             .filter(Boolean)
                             .join(" ") || undefined;
@@ -684,7 +735,9 @@ export default function App() {
                               aria-label={`将 ${name} 加入菜单`}
                               aria-describedby={describedBy}
                               aria-keyshortcuts={
-                                ordering ? "Alt+ArrowUp Alt+ArrowDown" : undefined
+                                ordering
+                                  ? "Alt+ArrowUp Alt+ArrowDown Alt+Home Alt+End"
+                                  : undefined
                               }
                               checked={selected.has(m.id)}
                               disabled={writing || !draft}
@@ -695,9 +748,15 @@ export default function App() {
                                 const vertical =
                                   e.key === "ArrowUp" || e.key === "ArrowDown";
                                 if (e.altKey) {
-                                  if (!ordering || !vertical) return;
+                                  const target = {
+                                    ArrowUp: position - 1,
+                                    ArrowDown: position + 1,
+                                    Home: 0,
+                                    End: menuSelected.length - 1,
+                                  }[e.key];
+                                  if (!ordering || target === undefined) return;
                                   e.preventDefault();
-                                  move(m.id, e.key === "ArrowUp" ? -1 : 1);
+                                  move(m.id, target);
                                   return;
                                 }
                                 if (!vertical && e.key !== "Home" && e.key !== "End")
@@ -723,7 +782,14 @@ export default function App() {
                               }}
                             />
                             {ordering && (
-                              <span className="menu-position">{position + 1}</span>
+                              <span className="menu-position" aria-hidden="true">
+                                {position + 1}
+                              </span>
+                            )}
+                            {onlySelected && position >= 0 && (
+                              <span className="sr-only" id={"model-pos-" + i}>
+                                {"第 " + (position + 1) + " 项，共 " + menuSelected.length + " 项"}
+                              </span>
                             )}
                             <div className="model-name">
                               <span>{name}</span>
@@ -747,10 +813,11 @@ export default function App() {
                                   type="button"
                                   tabIndex={-1}
                                   aria-label={`上移 ${name}`}
+                                  title="上移（Alt+↑，Alt+Home 移到最前）"
                                   disabled={writing || position === 0}
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    move(m.id, -1);
+                                    move(m.id, position - 1);
                                   }}
                                 >
                                   <Icon name="up" />
@@ -762,9 +829,10 @@ export default function App() {
                                   disabled={
                                     writing || position === menuSelected.length - 1
                                   }
+                                  title="下移（Alt+↓，Alt+End 移到最后）"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    move(m.id, 1);
+                                    move(m.id, position + 1);
                                   }}
                                 >
                                   <Icon name="down" />
@@ -802,6 +870,9 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                  <p className="sr-only" role="status">
+                    {moved}
+                  </p>
                   <div className="selection-tools">
                     {searching ? (
                       <>
@@ -869,15 +940,13 @@ export default function App() {
                   {select("子代理模型", "subagentModel")}
                   {select("自动审批模型", "autoModeModel")}
                   <p className="approval-hint">
-                    自动审批需 Claude Code 2.1.302+；服务端策略可能覆盖此选择，以
-                    CLI 调试日志为准。
+                    需 Claude Code 2.1.302+；服务端策略可能覆盖此选择。
                   </p>
                   <details className="alias-disclosure">
                     <summary>
-                      别名映射<span>可选</span>
+                      别名映射
                       <Icon name="arrow" />
                     </summary>
-                    <p>为原生模型别名指定 CPA 模型。</p>
                     {select("Opus", "aliasOpus")}
                     {select("Sonnet", "aliasSonnet")}
                     {select("Haiku", "aliasHaiku")}
@@ -894,6 +963,11 @@ export default function App() {
                     <span className="dirty-dot" />
                     有未保存修改
                   </>
+                )}
+                {status?.cpaConfigured && status.mode !== "cpa" && (
+                  <span>
+                    {w.dirtyModels ? "· " : ""}CPA 未启用，保存后切换到 CPA 才生效
+                  </span>
                 )}
               </div>
               <div className="footer-actions">
@@ -990,7 +1064,9 @@ export default function App() {
                     value={w.connection?.key ?? ""}
                     placeholder={
                       status?.cpaConfigured
-                        ? "留空沿用已保存的 Key"
+                        ? w.connection && w.connection.url.trim() !== (status.cpaBaseUrl ?? "")
+                          ? "地址已更改；留空将沿用已保存的 Key"
+                          : "留空沿用已保存的 Key"
                         : "填写 CPA Key"
                     }
                     onChange={(e) =>
@@ -1038,6 +1114,13 @@ export default function App() {
           onCancel={() => w.patch({ confirm: null })}
         >
           <h2>有未保存的修改</h2>
+          <p className="confirm-scope">
+            {w.dirtyModels && w.dirtyConnection
+              ? "模型配置和 CPA 连接都有未保存的修改。"
+              : w.dirtyConnection
+                ? "CPA 连接有未保存的修改。"
+                : "模型配置有未保存的修改。"}
+          </p>
           <p>
             {w.confirm === "close"
               ? "关闭前是否保存本次修改？"

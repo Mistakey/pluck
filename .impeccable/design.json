@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-06T03:39:39Z",
+  "generatedAt": "2026-11-06T04:31:38Z",
   "title": "Design System: Pluck",
   "extensions": {
     "colorMeta": {
@@ -334,12 +334,12 @@
       "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; width: 232px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-field > span { font-size: 12px; font-weight: 600; } .ds-field select { width: 100%; min-height: 36px; padding: 8px 24px 8px 8px; font: inherit; font-size: 12px; color: inherit; border: 1px solid #d8e0eb; border-radius: var(--radius); background: #fff; } .ds-field select:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }"
     },
     {
-      "name": "Search & Filter",
+      "name": "Search & View Switch",
       "kind": "chip",
-      "refersTo": "filter-button-active",
-      "description": "列表工具行：带放大镜图标的搜索框整体获焦；筛选按钮启用后转为钴蓝薄雾底 + 钴蓝字。",
-      "html": "<div class=\"ds-tools\"><label class=\"ds-search\"><svg class=\"ds-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 16l5 5M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0\"/></svg><input placeholder=\"搜索模型名称或 ID\"></label><button class=\"ds-filter\" aria-pressed=\"false\">已选 2</button><button class=\"ds-filter ds-active\" aria-pressed=\"true\">已选 2</button></div>",
-      "css": ".ds-tools { display: flex; gap: 8px; width: 420px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 8px; border: 1px solid #d8e0eb; border-radius: var(--radius); } .ds-search:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; } .ds-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--secondary); } .ds-search input { width: 100%; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 12px; color: inherit; outline: none; } .ds-filter { padding: 8px; font: inherit; font-size: 12px; white-space: nowrap; border: 1px solid #d8e0eb; border-radius: var(--radius); background: var(--surface); color: var(--secondary); cursor: pointer; } .ds-filter:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-filter.ds-active { background: var(--primary-tint); color: var(--primary); }"
+      "refersTo": "view-switch",
+      "description": "列表工具行：带放大镜图标的搜索框整体获焦；右侧“全部 / 菜单顺序 N”两段切换，选中项为钴蓝薄雾底 + 钴蓝字。",
+      "html": "<div class=\"ds-tools\"><label class=\"ds-search\"><svg class=\"ds-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 16l5 5M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0\"/></svg><input placeholder=\"搜索模型名称或 ID\"></label><div class=\"ds-view\"><button aria-pressed=\"false\">全部</button><button aria-pressed=\"true\">菜单顺序 2</button></div></div>",
+      "css": ".ds-tools { display: flex; gap: 8px; width: 420px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 8px; border: 1px solid #d8e0eb; border-radius: var(--radius); } .ds-search:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; } .ds-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--secondary); } .ds-search input { width: 100%; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 12px; color: inherit; outline: none; } .ds-view { display: flex; gap: 2px; padding: 3px; border: 1px solid #d8e0eb; border-radius: var(--radius); background: var(--surface); } .ds-view button { padding: 0 10px; border: 0; border-radius: 5px; background: none; font: inherit; font-size: 12px; color: var(--secondary); white-space: nowrap; cursor: pointer; } .ds-view button:hover { color: var(--text); } .ds-view button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-view button[aria-pressed=\"true\"] { background: var(--primary-tint); color: var(--primary); font-weight: 600; }"
     },
     {
       "name": "Model Row",

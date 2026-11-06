@@ -303,9 +303,9 @@ try {
     await field("搜索模型").fill("Alpha");
     assert.equal(await page.locator(".model-row").count(), 1);
     await field("搜索模型").fill("");
-    await button("已选 2").click();
+    await button("菜单顺序 2").click();
     assert.equal(await page.locator(".model-row").count(), 2);
-    await button("已选 2").click();
+    await button("全部").click();
     await button("全选").click();
     await button("保存配置").click();
     await poll(() =>
@@ -321,9 +321,9 @@ try {
     assert.equal(await page.locator(".model-row").count(), 11);
     assert.equal(await button("全选").count(), 0);
     await button("选中 11 个结果").click();
-    await button("已选 13").waitFor();
+    await button("菜单顺序 13").waitFor();
     await button("取消选中结果").click();
-    await button("已选 2").waitFor();
+    await button("菜单顺序 2").waitFor();
     await button("选中 11 个结果").click();
     await field("搜索模型").press("Escape");
     assert.equal(await field("搜索模型").inputValue(), "");
@@ -341,7 +341,7 @@ try {
   });
   await test("已选视图即 /model 菜单顺序：可调整顺序，取消勾选不跳动", async () => {
     await boot();
-    await button("已选 2").click();
+    await button("菜单顺序 2").click();
     const names = () => page.locator(".model-name").allInnerTexts();
     assert.deepEqual(await names(), ["Alpha", "legacy-outside-list"]);
     await page.getByText("Claude Code 内置模型 · 已隐藏").waitFor();
@@ -353,14 +353,18 @@ try {
       .getByRole("checkbox", { name: "将 legacy-outside-list 加入菜单" })
       .press("Alt+ArrowDown");
     assert.deepEqual(await names(), ["Alpha", "legacy-outside-list"]);
-    await button("下移 Alpha").click();
+    await page
+      .getByRole("checkbox", { name: "将 Alpha 加入菜单" })
+      .press("Alt+End");
+    assert.deepEqual(await names(), ["legacy-outside-list", "Alpha"]);
+    await page.getByText("Alpha 已移到第 2 位，共 2 项").waitFor();
     await field("将 Alpha 加入菜单").uncheck();
     assert.equal(await page.locator(".model-row").count(), 2);
-    await button("已选 1").waitFor();
+    await button("菜单顺序 1").waitFor();
     await button("保存配置").click();
     await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
     assert.deepEqual(backend.view.config.pickerModels, ["legacy-outside-list"]);
-    await button("已选 1").click();
+    await button("全部").click();
     assert.equal(await page.locator(".model-row").count(), 37);
   });
   await test("模型列表只占一个 Tab 停靠点，方向键在行间移动", async () => {
@@ -368,8 +372,7 @@ try {
     const focused = (name) =>
       field(name).evaluate((el) => document.activeElement === el);
     await field("搜索模型").focus();
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
+    await page.keyboard.press("ArrowDown");
     assert(await focused("将 Alpha 加入菜单"));
     await page.keyboard.press("ArrowDown");
     assert(await focused("将 Model 1 加入菜单"));
@@ -385,6 +388,25 @@ try {
     assert.equal(await field("API Key").getAttribute("aria-describedby"), "key-saved");
     await button("取消").click();
   });
+  await test("角色标签合并显示，用途下拉按是否在菜单分组", async () => {
+    await boot();
+    await field("默认模型").selectOption("model-b");
+    assert.equal(
+      await page.locator('.model-row[title="model-b"] .model-tag').innerText(),
+      "默认 · 子代理",
+    );
+    const groups = field("默认模型").locator("optgroup");
+    assert.deepEqual(await groups.evaluateAll((g) => g.map((x) => x.label)), [
+      "已在 /model 菜单",
+      "其他模型",
+    ]);
+    assert.equal(
+      await field("默认模型")
+        .locator('optgroup[label="已在 /model 菜单"] option[value="model-a"]')
+        .count(),
+      1,
+    );
+  });
   await test("顶部导航、方向键切换焦点、打开所在文件夹", async () => {
     await boot({ status: { ...clone(status), processEnv: ["ANTHROPIC_MODEL"] } });
     await page.getByText(/检测到系统环境变量 ANTHROPIC_MODEL/).waitFor();
@@ -396,7 +418,7 @@ try {
     );
     assert(!backend.calls.some((c) => c.cmd === "switch_mode"));
     await button("设置").click();
-    await page.getByText("已检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。").waitFor();
+    await page.getByText("已检测到", { exact: true }).waitFor();
     await page.getByText(/ANTHROPIC_MODEL，可能改变 CLI/).waitFor();
     await button("打开Claude Code 用户配置所在文件夹").click();
     await poll(() =>
@@ -854,9 +876,11 @@ try {
     await page.getByText(/已获取 35 个模型/).waitFor();
     assert.equal(await page.locator(".model-row").count(), 35);
     await field("默认模型").selectOption("model-a");
+    await page.getByText("CPA 未启用，保存后切换到 CPA 才生效").waitFor();
     await button("保存配置").click();
     await poll(() => backend.view.config.defaultModel === "model-a");
     assert.equal(backend.status.mode, "official");
+    await page.getByText(/^已保存到 CPA 设置：默认 Alpha，.*切换到 CPA 后生效。$/).waitFor();
     await button("CPA").click();
     await poll(() => backend.status.mode === "cpa");
   });

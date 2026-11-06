@@ -30,17 +30,22 @@ type State = {
   updates: UpdateStatus | null;
 };
 const RELAUNCH = "重新打开 Claude Code CLI 后生效。";
-// Say what was written instead of a generic success line.
-function savedSummary(config: ModelConfig, models: ModelInfo[]): string {
+// Say what was written instead of a generic success line. While CPA is not
+// in use the service stores the CPA preset only; it applies on switching.
+function savedSummary(
+  config: ModelConfig,
+  models: ModelInfo[],
+  live: boolean,
+): string {
   const name = (id: string) =>
     models.find((m) => m.id === id)?.displayName?.trim() || id;
   const menu = config.pickerModels.length;
   return [
-    "已保存：",
+    live ? "已保存：" : "已保存到 CPA 设置：",
     config.defaultModel ? `默认 ${name(config.defaultModel)}` : "默认模型未指定",
     menu ? `，/model 菜单 ${menu} 项` : "，未配置 /model 菜单",
     config.replaceBuiltIn && menu ? "（隐藏内置）" : "",
-    `。${RELAUNCH}`,
+    live ? `。${RELAUNCH}` : "。切换到 CPA 后生效。",
   ].join("");
 }
 const connectionFrom = (s: Status): Connection => ({
@@ -232,7 +237,10 @@ export function useWorkspace() {
     patch({
       status: r.status,
       view: { ...view, config: draft },
-      notice: { text: savedSummary(draft, view.models), error: false },
+      notice: {
+        text: savedSummary(draft, view.models, r.status.mode === "cpa"),
+        error: false,
+      },
     });
     await sync();
     if (ref.current.viewError)
@@ -327,6 +335,10 @@ export function useWorkspace() {
         ) {
           e.preventDefault();
           if (!ref.current.busy) patch({ confirm: "close" });
+          else
+            patch({
+              notice: { text: "正在处理，完成后再关闭窗口。", error: false },
+            });
         }
       }),
       listen<UpdateStatus>("update-changed", (e) => acceptUpdates(e.payload)).then(async (off) => {

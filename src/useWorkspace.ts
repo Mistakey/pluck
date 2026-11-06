@@ -155,6 +155,25 @@ export function useWorkspace() {
       patch({ busy: null });
     }
   }
+  // Refresh is a catalog operation, never a new editing baseline.
+  // Returns the model count, or null when a newer operation superseded it.
+  async function fetchCatalog() {
+    const token = epoch.current;
+    const v = await api.refreshModels();
+    if (token !== epoch.current) return null;
+    const current = ref.current;
+    if (current.view)
+      patch({
+        view: { ...current.view, models: v.models, fetchedAt: v.fetchedAt },
+        conflict:
+          current.conflict ||
+          (modelDirty(current) &&
+            (current.view.revision !== v.revision ||
+              current.view.source !== v.source)),
+      });
+    else acceptView(v);
+    return v.models.length;
+  }
   async function saveConnection() {
     const s = ref.current,
       c = s.connection;
@@ -182,6 +201,23 @@ export function useWorkspace() {
       editing: false,
       notice: { text: r.message, error: false },
     });
+    // A first connection has no list yet: fetch it now, which also shows
+    // whether the address and key work.
+    if (ref.current.view?.models.length || !r.status.cpaConfigured) return;
+    try {
+      const count = await fetchCatalog();
+      if (count !== null)
+        patch({
+          notice: { text: `${r.message} 已获取 ${count} 个模型。`, error: false },
+        });
+    } catch (e) {
+      patch({
+        notice: {
+          text: `连接已保存，但获取模型列表失败：${errorText(e)}`,
+          error: true,
+        },
+      });
+    }
   }
   async function saveModels() {
     const { view, draft, conflict } = ref.current;
@@ -338,24 +374,9 @@ export function useWorkspace() {
     reloadModels: () => operation("reload", () => sync(true)),
     refresh: () =>
       operation("refresh", async () => {
-        const token = epoch.current;
-        const v = await api.refreshModels();
-        if (token !== epoch.current) return;
-        // Refresh is a catalog operation, never a new editing baseline.
-        const current = ref.current;
-        if (current.view)
-          patch({
-            view: { ...current.view, models: v.models, fetchedAt: v.fetchedAt },
-            conflict:
-              current.conflict ||
-              (modelDirty(current) &&
-                (current.view.revision !== v.revision ||
-                  current.view.source !== v.source)),
-          });
-        else acceptView(v);
-        patch({
-          notice: { text: `已获取 ${v.models.length} 个模型。`, error: false },
-        });
+        const count = await fetchCatalog();
+        if (count !== null)
+          patch({ notice: { text: `已获取 ${count} 个模型。`, error: false } });
       }),
   };
 }

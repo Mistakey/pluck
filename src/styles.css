@@ -51,6 +51,7 @@ button[aria-disabled="true"] {
   cursor: default;
   opacity: 0.45;
 }
+.button.primary:disabled,
 .button.primary[aria-disabled="true"] {
   opacity: 1;
   background: var(--hover);
@@ -704,6 +705,17 @@ small {
 .settings-row > div {
   min-width: 0;
 }
+.settings-row > div > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--secondary);
+}
+.settings-row > div > span.warning {
+  color: var(--warning);
+}
+.settings-content p code {
+  color: var(--text);
+}
 .settings-row code {
   display: block;
   color: var(--secondary);
@@ -754,6 +766,10 @@ small {
 }
 .state-error .button {
   color: var(--text);
+}
+.state-actions {
+  display: flex;
+  gap: 8px;
 }
 .state-error p {
   overflow-wrap: anywhere;

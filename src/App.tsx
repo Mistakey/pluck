@@ -135,6 +135,7 @@ export default function App() {
   // Rows unchecked there stay in place until the view closes.
   const [menuRows, setMenuRows] = useState<string[] | null>(null);
   const onlySelected = menuRows !== null;
+  const [activeRow, setActiveRow] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const { status, view, draft } = w;
@@ -480,24 +481,48 @@ export default function App() {
               ))}
             </section>
             <section>
+              <h2>状态</h2>
+              <div className="settings-row">
+                <div>
+                  <strong>官方登录凭据</strong>
+                  <span>
+                    {!status
+                      ? "读取中…"
+                      : status.credentialsPresent
+                        ? "已检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。"
+                        : "未检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。"}
+                  </span>
+                </div>
+              </div>
+              <div className="settings-row">
+                <div>
+                  <strong>系统环境变量</strong>
+                  {status?.processEnv.length ? (
+                    <span className="warning">
+                      {status.processEnv.join("、")}
+                      ，可能改变 CLI 实际使用的连接或模型。
+                    </span>
+                  ) : (
+                    <span>{status ? "未检测到会影响连接或模型的变量。" : "读取中…"}</span>
+                  )}
+                </div>
+              </div>
+            </section>
+            <section>
+              <h2>Pluck 修改什么</h2>
+              <p>
+                只修改 Claude Code 用户级 settings.json 中的连接字段（
+                <code>ANTHROPIC_BASE_URL</code>、<code>ANTHROPIC_AUTH_TOKEN</code>、
+                <code>ANTHROPIC_API_KEY</code>）和模型字段（<code>model</code>、
+                <code>modelPicker</code> 及相关模型环境变量），其余设置保持不变；不读写登录凭据，不修改项目级设置。
+              </p>
+              <p>
+                修改后请重新打开 Claude Code CLI。项目级设置和启动参数仍按原生规则优先。
+              </p>
+            </section>
+            <section>
               <h2>关于</h2>
               <p>Pluck · Claude Code 配置管理 · {w.updates?.currentVersion ?? "读取中…"}</p>
-              <p>
-                官方模式使用 Claude Code 自身登录
-                {status?.credentialsPresent
-                  ? "（已检测到凭据）"
-                  : "（未检测到凭据）"}
-                ，Pluck 不修改登录凭据。
-              </p>
-              <p>
-                这里只修改用户级默认值。请重新打开 Claude Code CLI
-                以完整生效；项目设置、启动参数与环境变量仍按原生规则优先。
-              </p>
-              {!!status?.processEnv.length && (
-                <p className="warning">
-                  检测到环境变量：{status.processEnv.join("、")}
-                </p>
-              )}
             </section>
           </div>
         ) : (
@@ -506,13 +531,22 @@ export default function App() {
               <div className="state-error" role="alert">
                 <strong>配置无法读取</strong>
                 <p>{status.error}</p>
-                <button
-                  className="button"
-                  disabled={!!w.busy}
-                  onClick={() => void w.sync()}
-                >
-                  重新读取
-                </button>
+                <div className="state-actions">
+                  <button
+                    className="button"
+                    disabled={!!w.busy}
+                    onClick={() => void w.sync()}
+                  >
+                    重新读取
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => void reveal("settings")}
+                  >
+                    <Icon name="folder" />
+                    打开所在文件夹
+                  </button>
+                </div>
               </div>
             )}
             {status?.mode === "other" && (
@@ -637,6 +671,9 @@ export default function App() {
                             .filter(Boolean)
                             .join(" ") || undefined;
                         const position = menuSelected.indexOf(m.id);
+                        const tabStop =
+                          m.id === activeRow ||
+                          (i === 0 && !visible.some((v) => v.id === activeRow));
                         const ordering = onlySelected && !searching && position >= 0;
                         return (
                           <label className="model-row" key={m.id} title={m.id}>
@@ -649,13 +686,38 @@ export default function App() {
                               }
                               checked={selected.has(m.id)}
                               disabled={writing || !draft}
+                              tabIndex={tabStop ? 0 : -1}
+                              onFocus={() => setActiveRow(m.id)}
                               onChange={(e) => toggle(m.id, e.target.checked)}
                               onKeyDown={(e) => {
-                                if (!ordering || !e.altKey) return;
-                                if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
+                                const vertical =
+                                  e.key === "ArrowUp" || e.key === "ArrowDown";
+                                if (e.altKey) {
+                                  if (!ordering || !vertical) return;
+                                  e.preventDefault();
+                                  move(m.id, e.key === "ArrowUp" ? -1 : 1);
                                   return;
+                                }
+                                if (!vertical && e.key !== "Home" && e.key !== "End")
+                                  return;
+                                const rows = [
+                                  ...(e.currentTarget
+                                    .closest(".model-rows")
+                                    ?.querySelectorAll<HTMLInputElement>(
+                                      ".model-row > input",
+                                    ) ?? []),
+                                ];
+                                const at = rows.indexOf(e.currentTarget);
+                                const next =
+                                  e.key === "Home"
+                                    ? 0
+                                    : e.key === "End"
+                                      ? rows.length - 1
+                                      : at + (e.key === "ArrowUp" ? -1 : 1);
+                                if (next < 0 || next >= rows.length) return;
                                 e.preventDefault();
-                                move(m.id, e.key === "ArrowUp" ? -1 : 1);
+                                rows[next].focus();
+                                rows[next].scrollIntoView({ block: "nearest" });
                               }}
                             />
                             {ordering && (
@@ -681,6 +743,7 @@ export default function App() {
                               <span className="reorder">
                                 <button
                                   type="button"
+                                  tabIndex={-1}
                                   aria-label={`上移 ${name}`}
                                   disabled={writing || position === 0}
                                   onClick={(e) => {
@@ -692,6 +755,7 @@ export default function App() {
                                 </button>
                                 <button
                                   type="button"
+                                  tabIndex={-1}
                                   aria-label={`下移 ${name}`}
                                   disabled={
                                     writing || position === menuSelected.length - 1
@@ -910,7 +974,7 @@ export default function App() {
                 <span>
                   API Key
                   {status?.cpaKeyHint && (
-                    <small className="key-saved">
+                    <small className="key-saved" id="key-saved">
                       已保存 · {status.cpaKeyHint}
                     </small>
                   )}
@@ -918,6 +982,7 @@ export default function App() {
                 <div className="password-field">
                   <input
                     aria-label="API Key"
+                    aria-describedby={status?.cpaKeyHint ? "key-saved" : undefined}
                     type={showKey ? "text" : "password"}
                     autoComplete="off"
                     value={w.connection?.key ?? ""}

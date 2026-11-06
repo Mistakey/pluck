@@ -147,6 +147,8 @@ async function boot(options = {}) {
       case "get_models":
         return clone(backend.view);
       case "refresh_models":
+        // Optional upstream list that only a fetch returns (no cache yet).
+        if (backend.upstream) backend.view.models = clone(backend.upstream);
         return clone(backend.view);
       case "save_cpa": {
         if (args.revision !== backend.status.connectionRevision)
@@ -361,6 +363,28 @@ try {
     await button("已选 1").click();
     assert.equal(await page.locator(".model-row").count(), 37);
   });
+  await test("模型列表只占一个 Tab 停靠点，方向键在行间移动", async () => {
+    await boot();
+    const focused = (name) =>
+      field(name).evaluate((el) => document.activeElement === el);
+    await field("搜索模型").focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    assert(await focused("将 Alpha 加入菜单"));
+    await page.keyboard.press("ArrowDown");
+    assert(await focused("将 Model 1 加入菜单"));
+    await page.keyboard.press("End");
+    assert(await focused("将 legacy-haiku 加入菜单"));
+    await page.keyboard.press("Home");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Tab");
+    assert(await button("全选").evaluate((el) => document.activeElement === el));
+    await page.keyboard.press("Shift+Tab");
+    assert(await focused("将 Model 1 加入菜单"));
+    await button("编辑连接").click();
+    assert.equal(await field("API Key").getAttribute("aria-describedby"), "key-saved");
+    await button("取消").click();
+  });
   await test("顶部导航、方向键切换焦点、打开所在文件夹", async () => {
     await boot({ status: { ...clone(status), processEnv: ["ANTHROPIC_MODEL"] } });
     await page.getByText(/检测到系统环境变量 ANTHROPIC_MODEL/).waitFor();
@@ -372,6 +396,8 @@ try {
     );
     assert(!backend.calls.some((c) => c.cmd === "switch_mode"));
     await button("设置").click();
+    await page.getByText("已检测到。官方模式使用 Claude Code 自身登录，Pluck 不读写凭据。").waitFor();
+    await page.getByText(/ANTHROPIC_MODEL，可能改变 CLI/).waitFor();
     await button("打开Claude Code 用户配置所在文件夹").click();
     await poll(() =>
       backend.calls.some(
@@ -820,11 +846,13 @@ try {
     await button("配置 CPA").click();
     await field("地址").fill("http://127.0.0.1:18321");
     await field("API Key").fill("first-key");
+    backend.upstream = clone(catalog);
     await button("保存连接").click();
     await page.getByRole("dialog").waitFor({ state: "hidden" });
     assert.equal(backend.status.mode, "official");
-    backend.view.models = clone(catalog);
-    await button("获取模型").first().click();
+    // The first connection fetches the list without another click.
+    await page.getByText(/已获取 35 个模型/).waitFor();
+    assert.equal(await page.locator(".model-row").count(), 35);
     await field("默认模型").selectOption("model-a");
     await button("保存配置").click();
     await poll(() => backend.view.config.defaultModel === "model-a");

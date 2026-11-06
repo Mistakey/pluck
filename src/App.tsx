@@ -41,11 +41,13 @@ function Dialog({
   children,
   busy,
   onCancel,
+  initialFocus,
 }: {
   title: string;
   children: ReactNode;
   busy: boolean;
   onCancel: () => void;
+  initialFocus?: string;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const latest = useRef({ busy, onCancel });
@@ -58,7 +60,10 @@ function Dialog({
         'button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]',
       ),
     ];
-    (items()[0] ?? root).focus();
+    const preferred = initialFocus
+      ? root.querySelector<HTMLElement>(initialFocus)
+      : null;
+    (preferred ?? items()[0] ?? root).focus();
     function key(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -115,7 +120,33 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [onlySelected, setOnlySelected] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
   const { status, view, draft } = w;
+  const canSave = w.dirtyModels && !w.busy && !w.viewError;
+  const shortcuts = useRef({ page, canSave, w });
+  shortcuts.current = { page, canSave, w };
+  useEffect(() => {
+    function key(e: KeyboardEvent) {
+      const { page, canSave, w } = shortcuts.current;
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      if (w.editing || w.confirm || page !== "claude") return;
+      const k = e.key.toLowerCase();
+      if (k === "s") {
+        e.preventDefault();
+        if (canSave) void w.saveModels();
+      } else if (k === "f" && searchInput.current) {
+        e.preventDefault();
+        searchInput.current.focus();
+        searchInput.current.select();
+      }
+    }
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, []);
+  function openPage(next: "claude" | "settings") {
+    if (next !== page && w.notice && !w.notice.error) w.patch({ notice: null });
+    setPage(next);
+  }
   const writing = !!w.busy && w.busy !== "refresh";
   const models = view?.models ?? [];
   const known = new Set(models.map((m) => m.id));
@@ -146,6 +177,15 @@ export default function App() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  // While searching, bulk actions apply to the matching rows only.
+  const searching = !!search.trim();
+  const visibleIds = visible.map((m) => m.id);
+  const fetchedLabel = view?.fetchedAt
+    ? `${models.length} 个 · ${new Date(view.fetchedAt * 1000).toLocaleString(
+        "zh-CN",
+        { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" },
+      )} 获取`
+    : "尚未获取";
   function select(
     label: string,
     key:
@@ -230,28 +270,90 @@ export default function App() {
         <nav aria-label="功能导航">
           <button
             aria-current={page === "claude" ? "page" : undefined}
-            onClick={() => setPage("claude")}
+            onClick={() => openPage("claude")}
           >
             <Icon name="tool" />
             Claude Code
             {(w.dirtyModels || w.dirtyConnection) && (
-              <span className="dirty-dot" aria-label="未保存修改" />
+              <span className="dirty-dot" role="img" aria-label="未保存修改" />
             )}
           </button>
         </nav>
         <button
           className="settings-nav"
           aria-current={page === "settings" ? "page" : undefined}
-          onClick={() => setPage("settings")}
+          onClick={() => openPage("settings")}
         >
           <Icon name="settings" />
           设置
-          {w.updates?.version && <span className="dirty-dot" aria-label="发现新版本" />}
+          {w.updates?.version && <span className="dirty-dot update" role="img" aria-label="发现新版本" />}
         </button>
       </aside>
       <main className="workspace" inert={w.editing || !!w.confirm}>
         <header className="workspace-heading">
-          <h1>{page === "settings" ? "设置" : "Claude Code"}</h1>
+          <div className="heading-row">
+            <h1>{page === "settings" ? "设置" : "Claude Code"}</h1>
+            {page === "claude" && (
+              <div className="mode-switch">
+                <small role="status">
+                  {w.busy === "switch" ? "切换中…" : ""}
+                </small>
+                <div
+                  className="segmented"
+                  role="group"
+                  aria-label="Claude Code 使用方式"
+                >
+                  {(["official", "cpa"] as const).map((m) => (
+                    <button
+                      key={m}
+                      aria-pressed={status?.mode === m}
+                      disabled={
+                        !!w.busy ||
+                        !status ||
+                        status.mode === "error" ||
+                        status.mode === "other"
+                      }
+                      onClick={() => w.request(m)}
+                    >
+                      {status?.mode === m && <span className="status-dot" />}
+                      {m === "official"
+                        ? "官方订阅"
+                        : status?.cpaConfigured
+                          ? "CPA"
+                          : "配置 CPA"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {page === "claude" && (
+            <div className="connection-line">
+              <span>CPA</span>
+              <code title={status?.cpaBaseUrl ?? ""}>
+                {status?.cpaBaseUrl ?? "尚未配置连接"}
+              </code>
+              {status?.mode === "official" && status.cpaConfigured && (
+                <span className="neutral-badge">未启用</span>
+              )}
+              <button
+                className="link-button"
+                disabled={!!w.busy || !status || status.mode === "error"}
+                onClick={() => {
+                  w.editConnection();
+                  setShowKey(false);
+                }}
+              >
+                {status?.cpaConfigured ? "编辑连接" : "配置连接"}
+              </button>
+            </div>
+          )}
+          {page === "claude" && !!status?.processEnv.length && (
+            <p className="env-warning">
+              检测到系统环境变量 {status.processEnv.join("、")}
+              ，可能改变 CLI 实际使用的连接或模型。
+            </p>
+          )}
         </header>
         <div className="feedback">{alert}</div>
         {page === "settings" ? (
@@ -295,32 +397,6 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="mode-bar">
-              <span>使用方式</span>
-              <div className="segmented" role="group" aria-label="使用方式">
-                {(["official", "cpa"] as const).map((m) => (
-                  <button
-                    key={m}
-                    aria-pressed={status?.mode === m}
-                    disabled={
-                      !!w.busy ||
-                      !status ||
-                      status.mode === "error" ||
-                      status.mode === "other"
-                    }
-                    onClick={() => w.request(m)}
-                  >
-                    {status?.mode === m && <span className="status-dot" />}
-                    {m === "official"
-                      ? "官方订阅"
-                      : status?.cpaConfigured
-                        ? "CPA"
-                        : "配置 CPA"}
-                  </button>
-                ))}
-              </div>
-              {w.busy === "switch" && <small>切换中…</small>}
-            </div>
             {status?.mode === "error" && (
               <div className="state-error" role="alert">
                 <strong>配置无法读取</strong>
@@ -343,29 +419,6 @@ export default function App() {
                 </p>
               </div>
             )}
-            <div className="cpa-heading">
-              <h2>
-                CPA 模型
-                {status?.mode === "official" && status.cpaConfigured && (
-                  <span className="neutral-badge">未启用</span>
-                )}
-              </h2>
-              <div className="connection-summary">
-                <code title={status?.cpaBaseUrl ?? ""}>
-                  {status?.cpaBaseUrl ?? "尚未配置连接"}
-                </code>
-                <button
-                  className="button quiet"
-                  disabled={!!w.busy || !status || status.mode === "error"}
-                  onClick={() => {
-                    w.editConnection();
-                    setShowKey(false);
-                  }}
-                >
-                  {status?.cpaConfigured ? "编辑连接" : "配置连接"}
-                </button>
-              </div>
-            </div>
             {w.conflict && (
               <div className="conflict" role="alert">
                 <span>配置已在别处更新，你的编辑仍然保留。</span>
@@ -405,16 +458,34 @@ export default function App() {
                 <section className="catalog">
                   <div className="section-heading">
                     <h2>模型菜单</h2>
+                    <span
+                      className="fetched"
+                      title={
+                        view?.fetchedAt
+                          ? new Date(view.fetchedAt * 1000).toLocaleString()
+                          : undefined
+                      }
+                    >
+                      {fetchedLabel}
+                    </span>
                     {refreshButton}
                   </div>
                   <div className="list-tools">
                     <div className="search-field">
                       <Icon name="search" />
                       <input
+                        ref={searchInput}
                         aria-label="搜索模型"
+                        aria-keyshortcuts="Control+F"
                         placeholder="搜索模型名称或 ID"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape" && search) {
+                            e.preventDefault();
+                            setSearch("");
+                          }
+                        }}
                       />
                     </div>
                     <button
@@ -427,33 +498,57 @@ export default function App() {
                   </div>
                   <div className="model-rows" data-testid="model-list">
                     {visible.length ? (
-                      visible.map((m) => (
-                        <label className="model-row" key={m.id} title={m.id}>
-                          <input
-                            type="checkbox"
-                            aria-label={`将 ${modelName(m)} 加入菜单`}
-                            checked={selected.has(m.id)}
-                            disabled={writing || !draft}
-                            onChange={(e) =>
-                              w.update({
-                                pickerModels: e.target.checked
-                                  ? [...selected, m.id]
-                                  : [...selected].filter((id) => id !== m.id),
-                              })
-                            }
-                          />
-                          <div className="model-name">
-                            <span>{modelName(m)}</span>
-                          </div>
-                          {m.missing ? (
-                            <span className="missing">列表外</span>
-                          ) : draft?.defaultModel === m.id ? (
-                            <span className="model-tag">默认</span>
-                          ) : draft?.subagentModel === m.id ? (
-                            <span className="model-tag">子代理</span>
-                          ) : null}
-                        </label>
-                      ))
+                      visible.map((m, i) => {
+                        const name = modelName(m);
+                        const tag = m.missing
+                          ? "列表外"
+                          : draft?.defaultModel === m.id
+                            ? "默认"
+                            : draft?.subagentModel === m.id
+                              ? "子代理"
+                              : null;
+                        const describedBy =
+                          [
+                            name !== m.id && `model-id-${i}`,
+                            tag && `model-tag-${i}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" ") || undefined;
+                        return (
+                          <label className="model-row" key={m.id} title={m.id}>
+                            <input
+                              type="checkbox"
+                              aria-label={`将 ${name} 加入菜单`}
+                              aria-describedby={describedBy}
+                              checked={selected.has(m.id)}
+                              disabled={writing || !draft}
+                              onChange={(e) =>
+                                w.update({
+                                  pickerModels: e.target.checked
+                                    ? [...selected, m.id]
+                                    : [...selected].filter((id) => id !== m.id),
+                                })
+                              }
+                            />
+                            <div className="model-name">
+                              <span>{name}</span>
+                            </div>
+                            {name !== m.id && (
+                              <code className="model-id" id={`model-id-${i}`}>
+                                {m.id}
+                              </code>
+                            )}
+                            {tag && (
+                              <span
+                                className={m.missing ? "missing" : "model-tag"}
+                                id={`model-tag-${i}`}
+                              >
+                                {tag}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
                     ) : (
                       <div className="empty">
                         <Icon name={search ? "search" : "plug"} />
@@ -476,52 +571,78 @@ export default function App() {
                     )}
                   </div>
                   <div className="selection-tools">
-                    <button
-                      disabled={writing || !draft || !models.length}
-                      onClick={() =>
-                        w.update({
-                          pickerModels: [
-                            ...new Set([
-                              ...models.map((m) => m.id),
-                              ...missing.filter((id) => selected.has(id)),
-                            ]),
-                          ],
-                        })
-                      }
-                    >
-                      全选
-                    </button>
-                    <button
-                      disabled={writing || !draft || !selected.size}
-                      onClick={() => w.update({ pickerModels: [] })}
-                    >
-                      清空
-                    </button>
-                    <span
-                      title={
-                        view?.fetchedAt
-                          ? new Date(view.fetchedAt * 1000).toLocaleString()
-                          : "尚未获取"
-                      }
-                    >
-                      {view?.fetchedAt ? "列表已缓存" : "尚未获取"}
-                    </span>
+                    {searching ? (
+                      <>
+                        <button
+                          disabled={
+                            writing ||
+                            !draft ||
+                            visibleIds.every((id) => selected.has(id))
+                          }
+                          onClick={() =>
+                            w.update({
+                              pickerModels: [
+                                ...new Set([...selected, ...visibleIds]),
+                              ],
+                            })
+                          }
+                        >
+                          选中 {visible.length} 个结果
+                        </button>
+                        <button
+                          disabled={
+                            writing ||
+                            !draft ||
+                            !visibleIds.some((id) => selected.has(id))
+                          }
+                          onClick={() =>
+                            w.update({
+                              pickerModels: [...selected].filter(
+                                (id) => !visibleIds.includes(id),
+                              ),
+                            })
+                          }
+                        >
+                          取消选中结果
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          disabled={writing || !draft || !models.length}
+                          onClick={() =>
+                            w.update({
+                              pickerModels: [
+                                ...new Set([
+                                  ...models.map((m) => m.id),
+                                  ...missing.filter((id) => selected.has(id)),
+                                ]),
+                              ],
+                            })
+                          }
+                        >
+                          全选
+                        </button>
+                        <button
+                          disabled={writing || !draft || !selected.size}
+                          onClick={() => w.update({ pickerModels: [] })}
+                        >
+                          清空
+                        </button>
+                      </>
+                    )}
+                    <label className="policy">
+                      <input
+                        type="checkbox"
+                        checked={draft?.replaceBuiltIn ?? false}
+                        disabled={writing || !draft}
+                        onChange={(e) =>
+                          w.update({ replaceBuiltIn: e.target.checked })
+                        }
+                      />
+                      在 /model 中隐藏内置模型
+                    </label>
                   </div>
-                  <label className="policy">
-                    <input
-                      aria-label="仅显示选中的模型"
-                      type="checkbox"
-                      checked={draft?.replaceBuiltIn ?? false}
-                      disabled={writing || !draft}
-                      onChange={(e) =>
-                        w.update({ replaceBuiltIn: e.target.checked })
-                      }
-                    />
-                    <span>
-                      仅显示选中的模型
-                      <small>隐藏 Claude Code 内置模型选项</small>
-                    </span>
-                  </label>
                 </section>
                 <aside className="defaults-panel">
                   <h2>模型用途</h2>
@@ -529,8 +650,8 @@ export default function App() {
                   {select("子代理模型", "subagentModel")}
                   {select("自动审批模型", "autoModeModel")}
                   <p className="approval-hint">
-                    需 Claude Code 2.1.302+。未指定时使用原生审批默认。
-                    Anthropic 配置、模型策略或服务端审批可能覆盖选择；实际使用情况请查看 CLI 调试日志。
+                    自动审批需 Claude Code 2.1.302+；服务端策略可能覆盖此选择，以
+                    CLI 调试日志为准。
                   </p>
                   <details className="alias-disclosure">
                     <summary>
@@ -548,7 +669,7 @@ export default function App() {
             <footer
               className={`editor-footer ${w.dirtyModels ? "has-edits" : ""}`}
             >
-              <div>
+              <div role="status">
                 {w.dirtyModels && (
                   <>
                     <span className="dirty-dot" />
@@ -556,30 +677,39 @@ export default function App() {
                   </>
                 )}
               </div>
-              {w.dirtyModels && (
-                <div className="footer-actions">
-                  <button
-                    className="button quiet"
-                    disabled={!!w.busy}
-                    onClick={w.reloadModels}
-                  >
-                    放弃修改
-                  </button>
-                  <button
-                    className="button primary"
-                    disabled={!!w.busy || !!w.viewError}
-                    onClick={w.saveModels}
-                  >
-                    {w.busy === "models" ? "保存中…" : "保存配置"}
-                  </button>
-                </div>
-              )}
+              <div className="footer-actions">
+                <button
+                  className="button quiet"
+                  aria-disabled={!w.dirtyModels || !!w.busy}
+                  onClick={() => {
+                    if (w.dirtyModels && !w.busy) w.reloadModels();
+                  }}
+                >
+                  放弃修改
+                </button>
+                <button
+                  className="button primary"
+                  aria-disabled={!canSave}
+                  aria-keyshortcuts="Control+S"
+                  title="Ctrl+S"
+                  onClick={() => {
+                    if (canSave) void w.saveModels();
+                  }}
+                >
+                  {w.busy === "models" ? "保存中…" : "保存配置"}
+                </button>
+              </div>
             </footer>
           </>
         )}
       </main>
       {w.editing && !w.confirm && (
-        <Dialog title="CPA 连接" busy={!!w.busy} onCancel={cancelConnection}>
+        <Dialog
+          title="CPA 连接"
+          busy={!!w.busy}
+          onCancel={cancelConnection}
+          initialFocus='input[name="url"]:not(:disabled)'
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -611,6 +741,7 @@ export default function App() {
               <label className="field">
                 <span>地址</span>
                 <input
+                  name="url"
                   autoComplete="off"
                   value={w.connection?.url ?? ""}
                   placeholder="http://127.0.0.1:8317"

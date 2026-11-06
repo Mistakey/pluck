@@ -8,7 +8,7 @@
   background: var(--surface);
   font-synthesis: none;
   --text: #243046;
-  --secondary: #657286;
+  --secondary: #5f6c80;
   --line: #e3e8ef;
   --surface: #fff;
   --canvas: #f7f9fc;
@@ -46,9 +46,16 @@ select {
 button {
   cursor: pointer;
 }
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   cursor: default;
   opacity: 0.45;
+}
+.button.primary[aria-disabled="true"] {
+  opacity: 1;
+  background: var(--hover);
+  border-color: var(--hover);
+  color: var(--secondary);
 }
 button:focus-visible,
 input:focus-visible,
@@ -153,6 +160,9 @@ small {
 .sidebar .dirty-dot {
   margin-left: auto;
 }
+.dirty-dot.update {
+  background: var(--primary);
+}
 .workspace {
   display: flex;
   flex-direction: column;
@@ -160,9 +170,56 @@ small {
   min-width: 0;
 }
 .workspace-heading {
-  padding: 24px 32px 16px;
-  min-height: 72px;
+  margin: 0 32px 16px;
+  padding: 20px 0 14px;
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
+}
+.heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 36px;
+}
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mode-switch > small {
+  color: var(--secondary);
+}
+.connection-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.connection-line > code {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.link-button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.env-warning {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--warning);
 }
 .feedback {
   margin: 0 32px;
@@ -215,20 +272,6 @@ small {
   white-space: nowrap;
   font-size: 12px;
 }
-.mode-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 0 32px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-  flex-shrink: 0;
-}
-.mode-bar > span,
-.mode-bar > small {
-  font-size: 12px;
-  color: var(--secondary);
-}
 .segmented {
   display: flex;
   gap: 4px;
@@ -241,7 +284,8 @@ small {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-width: 80px;
+  min-width: 84px;
+  min-height: 28px;
   padding: 4px 12px;
   font-size: 12px;
   border: 0;
@@ -261,40 +305,13 @@ small {
   border-radius: 50%;
   background: var(--success);
 }
-.cpa-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin: 0 32px;
-  min-height: 64px;
-  flex-shrink: 0;
-}
-.cpa-heading h2 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .neutral-badge {
   font-weight: 400;
   font-size: 12px;
   background: var(--hover);
   color: var(--secondary);
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-}
-.connection-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: 64%;
-}
-.connection-summary > code {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--secondary);
 }
 .button {
   display: inline-flex;
@@ -331,10 +348,6 @@ small {
   background: transparent;
   color: var(--secondary);
 }
-.connection-summary .button {
-  color: var(--primary);
-  font-weight: 400;
-}
 .models-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 256px;
@@ -353,11 +366,16 @@ small {
 .section-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
   min-height: 36px;
   margin-bottom: 12px;
   flex-shrink: 0;
+}
+.fetched {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--secondary);
+  white-space: nowrap;
 }
 .list-tools {
   display: flex;
@@ -416,8 +434,8 @@ small {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 8px;
-  min-height: 56px;
+  padding: 8px;
+  min-height: 40px;
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
@@ -444,10 +462,17 @@ small {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.model-id {
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--secondary);
+}
 .model-tag,
 .missing {
   font-size: 12px;
-  padding: 4px;
+  padding: 1px 6px;
   border-radius: 4px;
   background: var(--hover);
   color: var(--secondary);
@@ -472,26 +497,13 @@ small {
   color: var(--primary);
   font-size: 12px;
 }
-.selection-tools > span {
-  margin-left: auto;
-  color: var(--secondary);
-}
 .policy {
   display: flex;
   gap: 8px;
-  align-items: start;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.policy input {
-  margin-top: 2px;
-}
-.policy small {
-  display: block;
-  color: var(--secondary);
-  margin-top: 4px;
+  align-items: center;
+  margin-left: auto;
+  cursor: pointer;
+  white-space: nowrap;
 }
 .defaults-panel {
   padding-left: 24px;
@@ -510,7 +522,7 @@ small {
   font-size: 12px;
   line-height: 1.5;
   color: var(--secondary);
-  margin-bottom: 24px;
+  margin: -12px 0 20px;
 }
 .field {
   display: flex;
@@ -583,7 +595,7 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
+  min-height: 60px;
   padding: 12px 32px;
   border-top: 1px solid transparent;
   flex-shrink: 0;
@@ -812,26 +824,12 @@ small {
     grid-template-columns: 156px minmax(0, 1fr);
   }
   .workspace-heading {
-    padding: 20px 24px 12px;
-    min-height: 64px;
+    margin: 0 24px 12px;
+    padding: 16px 0 12px;
   }
   .feedback {
     margin-left: 24px;
     margin-right: 24px;
-  }
-  .mode-bar {
-    margin: 0 24px;
-  }
-  .cpa-heading {
-    margin: 0 24px;
-    min-height: 56px;
-    gap: 16px;
-  }
-  .connection-summary > code {
-    font-size: 12px;
-  }
-  .connection-summary .button {
-    padding: 8px 4px;
   }
   .models-layout {
     grid-template-columns: minmax(0, 1fr) 216px;
@@ -846,13 +844,12 @@ small {
     margin-bottom: 16px;
   }
   .model-row {
-    min-height: 52px;
-    padding: 12px 4px;
+    padding: 8px 4px;
     gap: 8px;
   }
   .editor-footer {
     padding: 12px 24px;
-    min-height: 60px;
+    min-height: 56px;
   }
   .conflict,
   .state-error {

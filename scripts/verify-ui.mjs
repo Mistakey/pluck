@@ -311,6 +311,27 @@ try {
     );
     assert.equal(backend.view.config.pickerModels.length, 36);
   });
+  await test("搜索时批量操作只作用于结果，Ctrl+S 保存", async () => {
+    await boot();
+    await field("搜索模型").fill("Model 1");
+    assert.equal(await page.locator(".model-row").count(), 11);
+    assert.equal(await button("全选").count(), 0);
+    await button("选中 11 个结果").click();
+    await button("已选 13").waitFor();
+    await button("取消选中结果").click();
+    await button("已选 2").waitFor();
+    await button("选中 11 个结果").click();
+    await field("搜索模型").press("Escape");
+    assert.equal(await field("搜索模型").inputValue(), "");
+    await page.keyboard.press("Control+s");
+    await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
+    assert.equal(backend.view.config.pickerModels.length, 13);
+    assert(backend.view.config.pickerModels.includes("legacy-outside-list"));
+    await page.keyboard.press("Control+f");
+    assert(
+      await field("搜索模型").evaluate((el) => document.activeElement === el),
+    );
+  });
   await test("模型名称覆盖列表与所有用途，悬停保留 ID，保存仍使用 ID", async () => {
     await boot();
     await page.locator("summary").click();
@@ -354,7 +375,7 @@ try {
     await field("子代理模型").selectOption("model-a");
     await page.locator("summary").filter({ hasText: "别名映射" }).click();
     await field("Haiku").selectOption("model-b");
-    await field("仅显示选中的模型").uncheck();
+    await field("在 /model 中隐藏内置模型").uncheck();
     await button("保存配置").click();
     await poll(() => backend.view.config.aliasHaiku === "model-b");
     assert.equal(backend.view.config.defaultModel, "model-b");
@@ -515,7 +536,7 @@ try {
         );
         await poll(
           async () =>
-            (await page.locator(".connection-summary code").textContent()) ===
+            (await page.locator(".connection-line code").textContent()) ===
             backend.status.cpaBaseUrl,
         );
         await chosen("默认模型", "model-b");
@@ -707,10 +728,9 @@ try {
   await test("V4 Escape、焦点返回和 Tab 约束", async () => {
     await boot();
     await button("编辑连接").click();
-    assert.equal(
+    assert(
       await field("地址").evaluate((el) => document.activeElement === el),
-      false,
-    ); // close button is first focusable
+    );
     for (let i = 0; i < 12; i++) {
       await page.keyboard.press("Tab");
       assert(

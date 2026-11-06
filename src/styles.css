@@ -240,11 +240,20 @@ small {
   min-width: 0;
 }
 .notice > button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   background: transparent;
   border: 0;
-  font-size: 20px;
+  border-radius: 4px;
   align-self: start;
   color: inherit;
+}
+.notice > button .icon {
+  width: 14px;
+  height: 14px;
 }
 .conflict {
   margin: 0 32px 12px;
@@ -821,11 +830,20 @@ small {
   gap: 16px;
 }
 .dialog-heading button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -8px;
+  padding: 0;
   border: 0;
+  border-radius: var(--radius);
   background: none;
   color: var(--secondary);
-  font-size: 24px;
-  padding: 0 4px;
+}
+.dialog-heading button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
 }
 .connection-fields {
   border: 0;

@@ -19,7 +19,8 @@ function Icon({
     | "plug"
     | "up"
     | "down"
-    | "folder";
+    | "folder"
+    | "close";
 }) {
   const paths = {
     settings:
@@ -30,6 +31,7 @@ function Icon({
     back: "m15 5-7 7 7 7",
     up: "m6 15 6-6 6 6",
     down: "m6 9 6 6 6-6",
+    close: "M6 6l12 12M18 6 6 18",
     folder:
       "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z",
     plug: "M8 3v5m8-5v5M6 8h12v3a6 6 0 0 1-6 6v4m0-4a6 6 0 0 1-6-6",
@@ -297,7 +299,7 @@ export default function App() {
     >
       <span>{w.notice.text}</span>
       <button aria-label="关闭提示" onClick={() => w.patch({ notice: null })}>
-        ×
+        <Icon name="close" />
       </button>
     </div>
   );
@@ -941,7 +943,7 @@ export default function App() {
                 disabled={!!w.busy}
                 onClick={cancelConnection}
               >
-                ×
+                <Icon name="close" />
               </button>
             </div>
             {alert}

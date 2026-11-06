@@ -1,0 +1,428 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T03:39:39Z",
+  "title": "Design System: Pluck",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "钴蓝 Cobalt Action",
+        "canonical": "oklch(53.4% 0.166 264)",
+        "tonalRamp": [
+          "oklch(15% 0.029 264)",
+          "oklch(26% 0.090 264)",
+          "oklch(38% 0.137 264)",
+          "oklch(49% 0.163 264)",
+          "oklch(61% 0.163 264)",
+          "oklch(72% 0.137 264)",
+          "oklch(84% 0.090 264)",
+          "oklch(95% 0.029 264)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "深钴蓝 Pressed Cobalt",
+        "canonical": "oklch(47.5% 0.161 264)",
+        "tonalRamp": [
+          "oklch(15% 0.029 264)",
+          "oklch(26% 0.090 264)",
+          "oklch(38% 0.137 264)",
+          "oklch(49% 0.163 264)",
+          "oklch(61% 0.163 264)",
+          "oklch(72% 0.137 264)",
+          "oklch(84% 0.090 264)",
+          "oklch(95% 0.029 264)"
+        ]
+      },
+      "primary-tint": {
+        "role": "primary",
+        "displayName": "钴蓝薄雾 Cobalt Mist",
+        "canonical": "oklch(95.4% 0.019 266)",
+        "tonalRamp": [
+          "oklch(15% 0.029 264)",
+          "oklch(26% 0.090 264)",
+          "oklch(38% 0.137 264)",
+          "oklch(49% 0.163 264)",
+          "oklch(61% 0.163 264)",
+          "oklch(72% 0.137 264)",
+          "oklch(84% 0.090 264)",
+          "oklch(95% 0.029 264)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "墨蓝 Ink Navy",
+        "canonical": "oklch(30.9% 0.043 262)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "石板灰 Slate",
+        "canonical": "oklch(52.8% 0.035 259)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "雾线 Mist Line",
+        "canonical": "oklch(92.9% 0.011 257)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "控件描边 Control Edge",
+        "canonical": "oklch(90.4% 0.017 256)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "纸白 Paper",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "画布 Canvas",
+        "canonical": "oklch(98.1% 0.005 258)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "悬停 Hover Wash",
+        "canonical": "oklch(96.6% 0.008 254)",
+        "tonalRamp": [
+          "oklch(15% 0.006 259)",
+          "oklch(26% 0.019 259)",
+          "oklch(38% 0.029 259)",
+          "oklch(49% 0.035 259)",
+          "oklch(61% 0.035 259)",
+          "oklch(72% 0.029 259)",
+          "oklch(84% 0.019 259)",
+          "oklch(95% 0.006 259)"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "松绿 Pine",
+        "canonical": "oklch(48.5% 0.084 168)",
+        "tonalRamp": [
+          "oklch(15% 0.015 168)",
+          "oklch(26% 0.045 168)",
+          "oklch(38% 0.069 168)",
+          "oklch(49% 0.082 168)",
+          "oklch(61% 0.082 168)",
+          "oklch(72% 0.069 168)",
+          "oklch(84% 0.045 168)",
+          "oklch(95% 0.015 168)"
+        ]
+      },
+      "success-bg": {
+        "role": "success",
+        "displayName": "松绿浅底 Pine Wash",
+        "canonical": "oklch(96.7% 0.013 167)",
+        "tonalRamp": [
+          "oklch(15% 0.015 168)",
+          "oklch(26% 0.045 168)",
+          "oklch(38% 0.069 168)",
+          "oklch(49% 0.082 168)",
+          "oklch(61% 0.082 168)",
+          "oklch(72% 0.069 168)",
+          "oklch(84% 0.045 168)",
+          "oklch(95% 0.015 168)"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "砖红 Brick",
+        "canonical": "oklch(52.1% 0.138 18)",
+        "tonalRamp": [
+          "oklch(15% 0.024 18)",
+          "oklch(26% 0.075 18)",
+          "oklch(38% 0.114 18)",
+          "oklch(49% 0.135 18)",
+          "oklch(61% 0.135 18)",
+          "oklch(72% 0.114 18)",
+          "oklch(84% 0.075 18)",
+          "oklch(95% 0.024 18)"
+        ]
+      },
+      "error-bg": {
+        "role": "error",
+        "displayName": "砖红浅底 Brick Wash",
+        "canonical": "oklch(97.1% 0.014 17)",
+        "tonalRamp": [
+          "oklch(15% 0.024 18)",
+          "oklch(26% 0.075 18)",
+          "oklch(38% 0.114 18)",
+          "oklch(49% 0.135 18)",
+          "oklch(61% 0.135 18)",
+          "oklch(72% 0.114 18)",
+          "oklch(84% 0.075 18)",
+          "oklch(95% 0.024 18)"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "琥珀 Amber",
+        "canonical": "oklch(49.4% 0.091 74)",
+        "tonalRamp": [
+          "oklch(15% 0.016 74)",
+          "oklch(26% 0.049 74)",
+          "oklch(38% 0.075 74)",
+          "oklch(49% 0.089 74)",
+          "oklch(61% 0.089 74)",
+          "oklch(72% 0.075 74)",
+          "oklch(84% 0.049 74)",
+          "oklch(95% 0.016 74)"
+        ]
+      },
+      "warning-bg": {
+        "role": "warning",
+        "displayName": "琥珀浅底 Amber Wash",
+        "canonical": "oklch(98% 0.022 87)",
+        "tonalRamp": [
+          "oklch(15% 0.016 74)",
+          "oklch(26% 0.049 74)",
+          "oklch(38% 0.075 74)",
+          "oklch(49% 0.089 74)",
+          "oklch(61% 0.089 74)",
+          "oklch(72% 0.075 74)",
+          "oklch(84% 0.049 74)",
+          "oklch(95% 0.016 74)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "页面标题，每页一个。"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "弹窗标题。"
+      },
+      "title-sm": {
+        "displayName": "Title Small",
+        "purpose": "区块标题与空状态标题。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "模型名称、弹窗说明段落。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "按钮文字、字段标签、设置行名称。"
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "说明、计数、提示条、标签、输入框内文字。"
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "地址、文件路径、模型 ID。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog-lift",
+        "value": "0 15px 35px #18243b33",
+        "purpose": "只用于模态弹窗（--shadow-dialog）。"
+      },
+      {
+        "name": "segment-contact",
+        "value": "0 1px 3px #2430461a",
+        "purpose": "只用于分段控件的选中项。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "max-width: 900px",
+        "purpose": "页面边距收为 24px，右侧面板 216px，间距收紧。"
+      },
+      {
+        "name": "short",
+        "value": "max-height: 600px",
+        "purpose": "右侧模型用途面板的字段间距与下拉框高度收紧。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "提交动作（保存配置、保存连接），每个操作区最多一个；禁用时转为灰底灰字而非半透明。",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn-primary\">保存配置</button><button class=\"ds-btn-primary\" disabled>保存配置</button></div>",
+      "css": ".ds-row { display: flex; gap: 8px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; } .ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 600; line-height: 18px; border: 1px solid var(--primary); border-radius: var(--radius); background: var(--primary); color: #fff; cursor: pointer; white-space: nowrap; } .ds-btn-primary:hover:not(:disabled) { background: var(--primary-hover); } .ds-btn-primary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-btn-primary:disabled { cursor: default; background: var(--hover); border-color: var(--hover); color: var(--secondary); }"
+    },
+    {
+      "name": "Default & Quiet Buttons",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "非提交动作用描边默认按钮（可带 16px 线性图标）；放弃、取消用无框的 Quiet 按钮；行内动作用钴蓝链接按钮。",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn\"><svg class=\"ds-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 8a8 8 0 1 0 0 8M20 3v5h-5\"/></svg>刷新列表</button><button class=\"ds-btn ds-btn-quiet\">放弃修改</button><button class=\"ds-link\">编辑连接</button></div>",
+      "css": ".ds-row { display: flex; align-items: center; gap: 8px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 600; line-height: 18px; border: 1px solid #d8e0eb; border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap; } .ds-btn:hover { background: var(--hover); } .ds-btn:focus-visible, .ds-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-btn-quiet { border-color: transparent; background: transparent; color: var(--secondary); } .ds-icon { width: 16px; height: 16px; flex-shrink: 0; } .ds-link { border: 0; padding: 0; background: none; font: inherit; font-size: 12px; color: var(--primary); cursor: pointer; } .ds-link:hover { text-decoration: underline; }"
+    },
+    {
+      "name": "Segmented Mode Switch",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "主页面右上角的“官方订阅 / CPA”切换；选中项是带贴地阴影的白色滑块，生效模式带松绿圆点。",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button aria-pressed=\"false\">官方订阅</button><button aria-pressed=\"true\"><span class=\"ds-dot\"></span>CPA</button></div>",
+      "css": ".ds-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: var(--radius); background: var(--hover); font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; } .ds-seg button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 84px; min-height: 28px; padding: 4px 12px; font: inherit; font-size: 12px; border: 0; border-radius: 4px; background: transparent; color: var(--secondary); cursor: pointer; } .ds-seg button:hover { color: var(--text); } .ds-seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-seg button[aria-pressed=\"true\"] { background: #fff; color: var(--text); font-weight: 600; box-shadow: 0 1px 3px #2430461a; } .ds-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }"
+    },
+    {
+      "name": "Select Field",
+      "kind": "input",
+      "refersTo": "field-select",
+      "description": "右侧“模型用途”面板与弹窗里的字段：上方 12px/600 标签，下方 36px 高的描边控件。",
+      "html": "<label class=\"ds-field\"><span>默认模型</span><select><option>Model 1 · model-b</option><option>Alpha · model-a</option></select></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; width: 232px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-field > span { font-size: 12px; font-weight: 600; } .ds-field select { width: 100%; min-height: 36px; padding: 8px 24px 8px 8px; font: inherit; font-size: 12px; color: inherit; border: 1px solid #d8e0eb; border-radius: var(--radius); background: #fff; } .ds-field select:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }"
+    },
+    {
+      "name": "Search & Filter",
+      "kind": "chip",
+      "refersTo": "filter-button-active",
+      "description": "列表工具行：带放大镜图标的搜索框整体获焦；筛选按钮启用后转为钴蓝薄雾底 + 钴蓝字。",
+      "html": "<div class=\"ds-tools\"><label class=\"ds-search\"><svg class=\"ds-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 16l5 5M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0\"/></svg><input placeholder=\"搜索模型名称或 ID\"></label><button class=\"ds-filter\" aria-pressed=\"false\">已选 2</button><button class=\"ds-filter ds-active\" aria-pressed=\"true\">已选 2</button></div>",
+      "css": ".ds-tools { display: flex; gap: 8px; width: 420px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; color: var(--text); } .ds-search { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 8px; border: 1px solid #d8e0eb; border-radius: var(--radius); } .ds-search:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; } .ds-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--secondary); } .ds-search input { width: 100%; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 12px; color: inherit; outline: none; } .ds-filter { padding: 8px; font: inherit; font-size: 12px; white-space: nowrap; border: 1px solid #d8e0eb; border-radius: var(--radius); background: var(--surface); color: var(--secondary); cursor: pointer; } .ds-filter:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-filter.ds-active { background: var(--primary-tint); color: var(--primary); }"
+    },
+    {
+      "name": "Model Row",
+      "kind": "custom",
+      "refersTo": "model-row",
+      "description": "主页面核心列表行：复选框、模型名、右对齐的等宽模型 ID、可选标签；细线分隔，悬停变画布色。",
+      "html": "<div class=\"ds-rows\"><label class=\"ds-model-row\"><input type=\"checkbox\" checked><span class=\"ds-name\">Alpha</span><code>model-a</code></label><label class=\"ds-model-row\"><input type=\"checkbox\"><span class=\"ds-name\">Model 1</span><code>model-b</code><span class=\"ds-tag\">默认</span></label><label class=\"ds-model-row\"><input type=\"checkbox\" checked><span class=\"ds-name\">legacy-outside-list</span><span class=\"ds-tag ds-missing\">列表外</span></label></div>",
+      "css": ".ds-rows { width: 480px; border-top: 1px solid var(--line); font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; font-size: 14px; line-height: 1.5; color: var(--text); } .ds-model-row { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px; border-bottom: 1px solid var(--line); cursor: pointer; } .ds-model-row:hover { background: var(--canvas); } .ds-model-row input { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--primary); } .ds-model-row input:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .ds-model-row code { max-width: 45%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: \"Cascadia Code\", Consolas, monospace; font-size: 12px; color: var(--secondary); } .ds-tag { padding: 1px 6px; font-size: 12px; white-space: nowrap; border-radius: 4px; background: var(--hover); color: var(--secondary); } .ds-tag.ds-missing { background: var(--warning-bg); color: var(--warning); }"
+    },
+    {
+      "name": "Status Notices",
+      "kind": "custom",
+      "refersTo": "notice-success",
+      "description": "浅底无描边的提示条，颜色只取状态色：成功、错误、外部改动冲突（带同色下划线动作）。",
+      "html": "<div class=\"ds-notices\"><div class=\"ds-notice\">配置已保存。</div><div class=\"ds-notice ds-error\">无法连接 CPA：连接被拒绝。</div><div class=\"ds-notice ds-warn\"><span>配置文件已在外部修改。</span><button>重新载入</button></div></div>",
+      "css": ".ds-notices { display: flex; flex-direction: column; gap: 8px; width: 420px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; } .ds-notice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; border-radius: var(--radius); background: var(--success-bg); color: var(--success); } .ds-notice > span { flex: 1; } .ds-notice.ds-error { background: var(--error-bg); color: var(--error); } .ds-notice.ds-warn { background: var(--warning-bg); color: var(--warning); } .ds-notice button { border: 0; padding: 0; background: none; font: inherit; font-size: 12px; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; } .ds-notice button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }"
+    },
+    {
+      "name": "Dialog",
+      "kind": "card",
+      "refersTo": "dialog",
+      "description": "唯一离开页面平面的元素：464px 宽、32px 内边距、单层弹窗投影，底部右对齐 Quiet + Primary 动作。",
+      "html": "<div class=\"ds-backdrop\"><div class=\"ds-dialog\" role=\"dialog\" aria-label=\"未保存的修改\"><h2>未保存的修改</h2><p>切换前要先保存当前修改吗？</p><div class=\"ds-actions\"><button class=\"ds-quiet\">取消</button><button class=\"ds-primary\">保存并切换</button></div></div></div>",
+      "css": ".ds-backdrop { display: flex; align-items: center; justify-content: center; padding: 24px; background: #24304640; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", system-ui, sans-serif; } .ds-dialog { width: 100%; max-width: 464px; padding: 32px; border-radius: var(--radius); background: #fff; box-shadow: var(--shadow-dialog); color: var(--text); } .ds-dialog h2 { margin: 0; font-size: 18px; font-weight: 600; } .ds-dialog p { margin: 8px 0 0; font-size: 14px; color: var(--secondary); } .ds-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 32px; } .ds-actions button { min-height: 36px; padding: 8px 12px; font: inherit; font-size: 12px; font-weight: 600; border-radius: var(--radius); cursor: pointer; } .ds-actions button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; } .ds-quiet { border: 1px solid transparent; background: transparent; color: var(--secondary); } .ds-quiet:hover { background: var(--hover); } .ds-primary { border: 1px solid var(--primary); background: var(--primary); color: #fff; } .ds-primary:hover { background: var(--primary-hover); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "安静的配置台",
+    "overview": "Pluck 是一张白底的配置台：一个主页面、一个设置页、两类弹窗，所有东西都摊在桌面上，用细线分区，不用卡片和阴影堆层次。界面几乎全是中性的蓝灰色，只有需要用户注意或操作的地方才出现颜色：蓝色指向可以按的东西和已选中的项，绿色说明“当前生效”，橙色提醒“还没保存”，红色只给错误。信息密度偏高但不拥挤，正文 14px，控件和辅助信息统一收在 12px，靠字重而不是字号区分层级。\n\n这份文档是对现有实现的记录，不是用户锁定的风格承诺。用户没有风格偏好，标准只有“好用、好看”；只要更好用或更好看，这里的任何部分都可以演进，演进后重新扫描更新本文件即可。\n\n字体使用 Windows 原生的 Segoe UI Variable，让工具看起来像系统的一部分；地址、路径、模型 ID 这类要逐字核对的数据用等宽字体单独标出。整体安静、平、紧凑，交互反馈靠底色变化和 2px 蓝色焦点框，不靠动效。",
+    "keyCharacteristics": [
+      "白底平面，细线（1px）分区，几乎不用阴影",
+      "颜色只表达状态：蓝=操作/选中，绿=生效/成功，橙=未保存/警告，红=错误",
+      "两档主字号：正文 14px，控件与辅助 12px",
+      "等宽字体只用于需要逐字核对的数据",
+      "统一 8px 圆角，嵌套在内部的小元素用 4px",
+      "键盘焦点始终可见：2px 主色描边"
+    ],
+    "rules": [
+      {
+        "name": "The State-Only Color Rule",
+        "body": "颜色只表达状态：蓝=可操作或已选中，绿=当前生效或成功，橙=未保存或警告，红=错误。其余一切用蓝灰中性色。新增元素想用颜色时，先问它表达的是哪一种状态。",
+        "section": "colors"
+      },
+      {
+        "name": "The 4.5:1 Floor Rule",
+        "body": "次要文字色 secondary 是为了在 hover、canvas 等浅底上保持至少 4.5:1 对比度而调深的，不要再调浅；状态色的“深字 + 浅底”组合也都在 4.5:1 以上，新增组合须同样达标。",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono-for-Data Rule",
+        "body": "等宽字体只用于需要逐字核对或复制的数据：地址、路径、模型 ID。界面文案、数量、版本说明一律用正文字体。",
+        "section": "typography"
+      },
+      {
+        "name": "The Two-Size Rule",
+        "body": "页面内容只有两档字号：正文 14px、控件与辅助 12px。标题之外的层级靠字重和颜色（墨蓝 / 石板灰）区分，不新增中间字号。",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Structure Rule",
+        "body": "区域划分用 1px 雾线（line），不用卡片、底色块或阴影。底部保存栏的上沿只在有未保存修改时出现。",
+        "section": "layout"
+      },
+      {
+        "name": "The Only-Dialogs-Float Rule",
+        "body": "只有模态弹窗离开页面平面，并且只用一层投影；页面上的面板、列表、提示条都不加阴影。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 按状态选色：蓝（primary）只给可操作和已选中，绿（success）给当前生效与成功，橙（warning）给未保存与警告，红（error）只给错误。",
+      "Do 次要文字统一用 secondary（#5f6c80），并保证在 hover、canvas 等浅底上至少 4.5:1。",
+      "Do 地址、路径、模型 ID 用等宽字体（Cascadia Code / Consolas，12px），其余文案用正文字体。",
+      "Do 按钮、输入框、提示条、弹窗用 8px 圆角，内部小元素用 4px。",
+      "Do 用 1px 雾线（line）划分区域，层次靠留白与细线表达。",
+      "Do 每个可聚焦元素保留 2px 钴蓝焦点描边。"
+    ],
+    "donts": [
+      "Don't 把次要文字色调浅到 #5f6c80 以下的对比度；它是为可读性专门调整过的。",
+      "Don't 用颜色做装饰：没有状态含义的元素不要用蓝、绿、橙、红。",
+      "Don't 给页面上的面板、列表或提示条加阴影；阴影只属于弹窗（以及分段控件选中项的贴地阴影）。",
+      "Don't 用等宽字体排普通文案或数字统计。",
+      "Don't 在 14px 与 12px 之间新增中间字号来制造层级；改用字重或颜色。"
+    ]
+  }
+}

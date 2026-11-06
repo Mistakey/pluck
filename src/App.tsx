@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWorkspace } from "./useWorkspace";
-import type { ModelConfig, ModelInfo } from "./api";
+import { api, errorText, type ModelConfig, type ModelInfo } from "./api";
 import { UpdatePanel } from "./UpdatePanel";
 
 function modelName(model: ModelInfo): string {
@@ -10,15 +10,28 @@ function modelName(model: ModelInfo): string {
 function Icon({
   name,
 }: {
-  name: "tool" | "settings" | "search" | "refresh" | "arrow" | "plug";
+  name:
+    | "settings"
+    | "search"
+    | "refresh"
+    | "arrow"
+    | "back"
+    | "plug"
+    | "up"
+    | "down"
+    | "folder";
 }) {
   const paths = {
-    tool: "m8 7-5 5 5 5m8-10 5 5-5 5M14 4l-4 16",
     settings:
       "m9 3-1 3-3 1-2 5 2 5 3 1 1 3h6l1-3 3-1 2-5-2-5-3-1-1-3ZM9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
     search: "M16 16l5 5M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0",
     refresh: "M20 8a8 8 0 1 0 0 8M20 3v5h-5",
     arrow: "m9 5 7 7-7 7",
+    back: "m15 5-7 7 7 7",
+    up: "m6 15 6-6 6 6",
+    down: "m6 9 6 6 6-6",
+    folder:
+      "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z",
     plug: "M8 3v5m8-5v5M6 8h12v3a6 6 0 0 1-6 6v4m0-4a6 6 0 0 1-6-6",
   };
   return (
@@ -118,7 +131,10 @@ export default function App() {
   const w = useWorkspace();
   const [page, setPage] = useState<"claude" | "settings">("claude");
   const [search, setSearch] = useState("");
-  const [onlySelected, setOnlySelected] = useState(false);
+  // Non-null while the "已选" view is open: the /model menu in its written order.
+  // Rows unchecked there stay in place until the view closes.
+  const [menuRows, setMenuRows] = useState<string[] | null>(null);
+  const onlySelected = menuRows !== null;
   const [showKey, setShowKey] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const { status, view, draft } = w;
@@ -169,14 +185,59 @@ export default function App() {
     ...models.map((m) => ({ ...m, missing: false })),
     ...missing.map((id) => ({ id, displayName: null, missing: true })),
   ];
-  const selected = new Set(draft?.pickerModels);
-  const visible = options.filter(
-    (m) =>
-      (!onlySelected || selected.has(m.id)) &&
-      `${m.id} ${m.displayName ?? ""}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+  const picker = draft?.pickerModels ?? [];
+  const selected = new Set(picker);
+  const optionById = new Map(options.map((m) => [m.id, m]));
+  const menuOrder = menuRows
+    ? [...menuRows, ...picker.filter((id) => !menuRows.includes(id))]
+    : [];
+  const visible = (
+    menuRows
+      ? menuOrder.map(
+          (id) =>
+            optionById.get(id) ?? { id, displayName: null, missing: !known.has(id) },
+        )
+      : options
+  ).filter((m) =>
+    `${m.id} ${m.displayName ?? ""}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
+  const menuSelected = menuOrder.filter((id) => selected.has(id));
+  // Keep the current menu order; new picks go to the end.
+  function choose(next: Set<string>) {
+    const base = menuRows ? menuOrder : picker;
+    w.update({
+      pickerModels: [
+        ...base.filter((id) => next.has(id)),
+        ...[...next].filter((id) => !base.includes(id)),
+      ],
+    });
+  }
+  function toggle(id: string, on: boolean) {
+    const next = new Set(selected);
+    if (on) next.add(id);
+    else next.delete(id);
+    choose(next);
+  }
+  function move(id: string, delta: -1 | 1) {
+    const i = menuSelected.indexOf(id);
+    const j = i + delta;
+    if (!menuRows || i < 0 || j < 0 || j >= menuSelected.length) return;
+    const order = [...menuOrder];
+    const a = order.indexOf(menuSelected[i]);
+    const b = order.indexOf(menuSelected[j]);
+    [order[a], order[b]] = [order[b], order[a]];
+    setMenuRows(order);
+    w.update({ pickerModels: order.filter((x) => selected.has(x)) });
+  }
+  async function reveal(target: "settings" | "data" | "config") {
+    try {
+      await api.revealLocation(target);
+    } catch (e) {
+      w.patch({ notice: { text: errorText(e), error: true } });
+    }
+  }
   // While searching, bulk actions apply to the matching rows only.
   const searching = !!search.trim();
   const visibleIds = visible.map((m) => m.id);
@@ -220,6 +281,7 @@ export default function App() {
           {options.map((m) => (
             <option key={m.id} value={m.id} title={m.id}>
               {modelName(m)}
+              {modelName(m) !== m.id ? ` · ${m.id}` : ""}
               {m.missing ? " · 列表外" : ""}
             </option>
           ))}
@@ -263,35 +325,27 @@ export default function App() {
   };
   return (
     <div className="app-layout">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">P</span>Pluck
-        </div>
-        <nav aria-label="功能导航">
-          <button
-            aria-current={page === "claude" ? "page" : undefined}
-            onClick={() => openPage("claude")}
-          >
-            <Icon name="tool" />
-            Claude Code
-            {(w.dirtyModels || w.dirtyConnection) && (
-              <span className="dirty-dot" role="img" aria-label="未保存修改" />
-            )}
-          </button>
-        </nav>
-        <button
-          className="settings-nav"
-          aria-current={page === "settings" ? "page" : undefined}
-          onClick={() => openPage("settings")}
-        >
-          <Icon name="settings" />
-          设置
-          {w.updates?.version && <span className="dirty-dot update" role="img" aria-label="发现新版本" />}
-        </button>
-      </aside>
       <main className="workspace" inert={w.editing || !!w.confirm}>
         <header className="workspace-heading">
           <div className="heading-row">
+            {page === "settings" && (
+              <nav aria-label="功能导航">
+                <button
+                  className="nav-button back"
+                  onClick={() => openPage("claude")}
+                >
+                  <Icon name="back" />
+                  Claude Code
+                  {(w.dirtyModels || w.dirtyConnection) && (
+                    <span
+                      className="dirty-dot"
+                      role="img"
+                      aria-label="未保存修改"
+                    />
+                  )}
+                </button>
+              </nav>
+            )}
             <h1>{page === "settings" ? "设置" : "Claude Code"}</h1>
             {page === "claude" && (
               <div className="mode-switch">
@@ -302,6 +356,28 @@ export default function App() {
                   className="segmented"
                   role="group"
                   aria-label="Claude Code 使用方式"
+                  onKeyDown={(e) => {
+                    const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+                    if (!keys.includes(e.key)) return;
+                    const all = [
+                      ...e.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        "button:not(:disabled)",
+                      ),
+                    ];
+                    const i = all.indexOf(
+                      document.activeElement as HTMLButtonElement,
+                    );
+                    if (i < 0) return;
+                    e.preventDefault();
+                    const n = all.length;
+                    all[
+                      e.key === "Home"
+                        ? 0
+                        : e.key === "End"
+                          ? n - 1
+                          : (i + (e.key === "ArrowRight" ? 1 : -1) + n) % n
+                    ].focus();
+                  }}
                 >
                   {(["official", "cpa"] as const).map((m) => (
                     <button
@@ -325,6 +401,24 @@ export default function App() {
                   ))}
                 </div>
               </div>
+            )}
+            {page === "claude" && (
+              <nav aria-label="功能导航">
+                <button
+                  className="nav-button"
+                  onClick={() => openPage("settings")}
+                >
+                  <Icon name="settings" />
+                  设置
+                  {w.updates?.version && (
+                    <span
+                      className="dirty-dot update"
+                      role="img"
+                      aria-label="发现新版本"
+                    />
+                  )}
+                </button>
+              </nav>
             )}
           </div>
           {page === "claude" && (
@@ -361,16 +455,27 @@ export default function App() {
             <UpdatePanel status={w.updates} busy={!!w.busy} check={() => void w.checkUpdates()} install={() => w.request("update")} />
             <section>
               <h2>配置位置</h2>
-              {[
-                ["Claude Code 用户配置", status?.settingsPath],
-                ["Pluck 数据", status?.dataPath],
-                ["Claude 配置目录", status?.configDir],
-              ].map(([label, path]) => (
+              {(
+                [
+                  ["Claude Code 用户配置", status?.settingsPath, "settings"],
+                  ["Pluck 数据", status?.dataPath, "data"],
+                  ["Claude 配置目录", status?.configDir, "config"],
+                ] as const
+              ).map(([label, path, target]) => (
                 <div className="settings-row" key={label}>
                   <div>
                     <strong>{label}</strong>
                     <code>{path ?? "读取中…"}</code>
                   </div>
+                  <button
+                    className="link-button"
+                    aria-label={`打开${label}${target === "config" ? "" : "所在"}文件夹`}
+                    disabled={!path}
+                    onClick={() => void reveal(target)}
+                  >
+                    <Icon name="folder" />
+                    {target === "config" ? "打开文件夹" : "打开所在文件夹"}
+                  </button>
                 </div>
               ))}
             </section>
@@ -417,6 +522,23 @@ export default function App() {
                   {status.otherBaseUrl ?? "仅鉴权变量"}。Pluck
                   不会自动覆盖。如需将它作为 CPA，请明确保存该连接。
                 </p>
+                {status.otherBaseUrl && (
+                  <button
+                    className="button"
+                    disabled={!!w.busy || !w.connection}
+                    onClick={() => {
+                      if (!w.connection || !status.otherBaseUrl) return;
+                      w.patch({
+                        editing: true,
+                        notice: null,
+                        connection: { ...w.connection, url: status.otherBaseUrl },
+                      });
+                      setShowKey(false);
+                    }}
+                  >
+                    将此地址保存为 CPA
+                  </button>
+                )}
               </div>
             )}
             {w.conflict && (
@@ -435,7 +557,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            {!status?.cpaConfigured && status?.mode !== "error" ? (
+            {!status ? null : !status.cpaConfigured && status.mode !== "error" ? (
               <div className="official-state">
                 <Icon name="plug" />
                 <div>
@@ -491,7 +613,7 @@ export default function App() {
                     <button
                       className={`filter-button ${onlySelected ? "active" : ""}`}
                       aria-pressed={onlySelected}
-                      onClick={() => setOnlySelected(!onlySelected)}
+                      onClick={() => setMenuRows(onlySelected ? null : [...picker])}
                     >
                       已选 {selected.size}
                     </button>
@@ -514,22 +636,31 @@ export default function App() {
                           ]
                             .filter(Boolean)
                             .join(" ") || undefined;
+                        const position = menuSelected.indexOf(m.id);
+                        const ordering = onlySelected && !searching && position >= 0;
                         return (
                           <label className="model-row" key={m.id} title={m.id}>
                             <input
                               type="checkbox"
                               aria-label={`将 ${name} 加入菜单`}
                               aria-describedby={describedBy}
+                              aria-keyshortcuts={
+                                ordering ? "Alt+ArrowUp Alt+ArrowDown" : undefined
+                              }
                               checked={selected.has(m.id)}
                               disabled={writing || !draft}
-                              onChange={(e) =>
-                                w.update({
-                                  pickerModels: e.target.checked
-                                    ? [...selected, m.id]
-                                    : [...selected].filter((id) => id !== m.id),
-                                })
-                              }
+                              onChange={(e) => toggle(m.id, e.target.checked)}
+                              onKeyDown={(e) => {
+                                if (!ordering || !e.altKey) return;
+                                if (e.key !== "ArrowUp" && e.key !== "ArrowDown")
+                                  return;
+                                e.preventDefault();
+                                move(m.id, e.key === "ArrowUp" ? -1 : 1);
+                              }}
                             />
+                            {ordering && (
+                              <span className="menu-position">{position + 1}</span>
+                            )}
                             <div className="model-name">
                               <span>{name}</span>
                             </div>
@@ -544,6 +675,34 @@ export default function App() {
                                 id={`model-tag-${i}`}
                               >
                                 {tag}
+                              </span>
+                            )}
+                            {ordering && (
+                              <span className="reorder">
+                                <button
+                                  type="button"
+                                  aria-label={`上移 ${name}`}
+                                  disabled={writing || position === 0}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    move(m.id, -1);
+                                  }}
+                                >
+                                  <Icon name="up" />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={`下移 ${name}`}
+                                  disabled={
+                                    writing || position === menuSelected.length - 1
+                                  }
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    move(m.id, 1);
+                                  }}
+                                >
+                                  <Icon name="down" />
+                                </button>
                               </span>
                             )}
                           </label>
@@ -569,6 +728,13 @@ export default function App() {
                         {!search && !onlySelected && refreshButton}
                       </div>
                     )}
+                    {onlySelected && !searching && !!menuSelected.length && (
+                      <div className="menu-builtins">
+                        {draft?.replaceBuiltIn
+                          ? "Claude Code 内置模型 · 已隐藏"
+                          : "Claude Code 内置模型 · 保留"}
+                      </div>
+                    )}
                   </div>
                   <div className="selection-tools">
                     {searching ? (
@@ -579,13 +745,7 @@ export default function App() {
                             !draft ||
                             visibleIds.every((id) => selected.has(id))
                           }
-                          onClick={() =>
-                            w.update({
-                              pickerModels: [
-                                ...new Set([...selected, ...visibleIds]),
-                              ],
-                            })
-                          }
+                          onClick={() => choose(new Set([...selected, ...visibleIds]))}
                         >
                           选中 {visible.length} 个结果
                         </button>
@@ -596,11 +756,9 @@ export default function App() {
                             !visibleIds.some((id) => selected.has(id))
                           }
                           onClick={() =>
-                            w.update({
-                              pickerModels: [...selected].filter(
-                                (id) => !visibleIds.includes(id),
-                              ),
-                            })
+                            choose(
+                              new Set(picker.filter((id) => !visibleIds.includes(id))),
+                            )
                           }
                         >
                           取消选中结果
@@ -608,24 +766,19 @@ export default function App() {
                       </>
                     ) : (
                       <>
-                        <button
-                          disabled={writing || !draft || !models.length}
-                          onClick={() =>
-                            w.update({
-                              pickerModels: [
-                                ...new Set([
-                                  ...models.map((m) => m.id),
-                                  ...missing.filter((id) => selected.has(id)),
-                                ]),
-                              ],
-                            })
-                          }
-                        >
-                          全选
-                        </button>
+                        {!onlySelected && (
+                          <button
+                            disabled={writing || !draft || !models.length}
+                            onClick={() =>
+                              choose(new Set([...picker, ...models.map((m) => m.id)]))
+                            }
+                          >
+                            全选
+                          </button>
+                        )}
                         <button
                           disabled={writing || !draft || !selected.size}
-                          onClick={() => w.update({ pickerModels: [] })}
+                          onClick={() => choose(new Set())}
                         >
                           清空
                         </button>

@@ -10,7 +10,7 @@ CPA 当前没有 Claude 系列模型，未来模型名称也不确定，因此�
 
 CPA 通过 `ANTHROPIC_AUTH_TOKEN` 使用 Bearer 鉴权，切到 CPA 时移除 `ANTHROPIC_API_KEY`，避免两种鉴权同时存在。切回官方时移除这些连接覆盖，继续使用 CLI 自己的登录。Key 明文保存在本机 `state.json`，CPA 使用中也写入 CLI 的 `settings.json`；窗口只显示尾号。首版沿用原生配置的本机文件存储边界，没有另建凭据库。
 
-原生模型菜单默认保留内置选项，只有用户勾选“只显示以上模型”才写入 `replaceBuiltInOptions`。这样加入 CPA 模型时不自动隐藏 CLI 原有入口，用户仍可按自己的服务能力选择替换菜单。
+原生模型菜单默认保留内置选项，只有用户勾选“在 /model 中隐藏内置模型”才写入 `replaceBuiltInOptions`。这样加入 CPA 模型时不自动隐藏 CLI 原有入口，用户仍可按自己的服务能力选择替换菜单。
 
 ## 考虑过的方案
 

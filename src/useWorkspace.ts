@@ -5,6 +5,7 @@ import {
   api,
   errorText,
   type ModelConfig,
+  type ModelInfo,
   type ModelView,
   type Status,
   type Mode,
@@ -28,6 +29,20 @@ type State = {
   viewError: string | null;
   updates: UpdateStatus | null;
 };
+const RELAUNCH = "重新打开 Claude Code CLI 后生效。";
+// Say what was written instead of a generic success line.
+function savedSummary(config: ModelConfig, models: ModelInfo[]): string {
+  const name = (id: string) =>
+    models.find((m) => m.id === id)?.displayName?.trim() || id;
+  const menu = config.pickerModels.length;
+  return [
+    "已保存：",
+    config.defaultModel ? `默认 ${name(config.defaultModel)}` : "默认模型未指定",
+    menu ? `，/model 菜单 ${menu} 项` : "，未配置 /model 菜单",
+    config.replaceBuiltIn && menu ? "（隐藏内置）" : "",
+    `。${RELAUNCH}`,
+  ].join("");
+}
 const connectionFrom = (s: Status): Connection => ({
   url: s.cpaBaseUrl ?? "",
   key: "",
@@ -181,7 +196,7 @@ export function useWorkspace() {
     patch({
       status: r.status,
       view: { ...view, config: draft },
-      notice: { text: r.message, error: false },
+      notice: { text: savedSummary(draft, view.models), error: false },
     });
     await sync();
     if (ref.current.viewError)
@@ -203,7 +218,10 @@ export function useWorkspace() {
     const r = await api.switchMode(action);
     patch({
       status: r.status,
-      notice: { text: r.message, error: false },
+      notice: {
+        text: `已切换到${action === "cpa" ? " CPA" : "官方订阅"}。${RELAUNCH}`,
+        error: false,
+      },
       editing: false,
     });
     await sync(true);

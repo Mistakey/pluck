@@ -1,5 +1,11 @@
 import type { UpdateStatus } from "./api";
 
+function size(bytes: number): string {
+  return bytes < 1024 * 1024
+    ? `${Math.ceil(bytes / 1024)} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
+}
+
 export function UpdatePanel({ status, busy, check, install, compact = false }: {
   status: UpdateStatus | null;
   busy: boolean;
@@ -20,7 +26,7 @@ export function UpdatePanel({ status, busy, check, install, compact = false }: {
       {downloading && <div className="update-progress" role="status">
         <progress aria-label="更新下载进度" max={status.total ?? undefined} value={status.total ? status.downloaded : undefined} />
         <p>{status.total ? `${Math.min(100, Math.round(status.downloaded / status.total * 100))}% · ` : ""}
-          {(status.downloaded / 1024 / 1024).toFixed(1)} MiB 已下载</p>
+          {size(status.downloaded)} 已下载</p>
       </div>}
       {status?.error && <p className="update-error" role="alert">{status.error}</p>}
       {status?.installBlocked && <p>{status.installBlocked}</p>}

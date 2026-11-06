@@ -174,6 +174,8 @@ async function boot(options = {}) {
         backend.view.source = args.mode === "cpa" ? "live" : "saved";
         backend.view.revision += "m";
         return { message: "已切换", status: clone(backend.status) };
+      case "reveal_location":
+        return;
       case "plugin:window|destroy":
         backend.destroyed++;
         return;
@@ -327,10 +329,57 @@ try {
     await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
     assert.equal(backend.view.config.pickerModels.length, 13);
     assert(backend.view.config.pickerModels.includes("legacy-outside-list"));
+    await page
+      .getByText(/^已保存：默认 legacy-outside-list，\/model 菜单 13 项（隐藏内置）。/)
+      .waitFor();
     await page.keyboard.press("Control+f");
     assert(
       await field("搜索模型").evaluate((el) => document.activeElement === el),
     );
+  });
+  await test("已选视图即 /model 菜单顺序：可调整顺序，取消勾选不跳动", async () => {
+    await boot();
+    await button("已选 2").click();
+    const names = () => page.locator(".model-name").allInnerTexts();
+    assert.deepEqual(await names(), ["Alpha", "legacy-outside-list"]);
+    await page.getByText("Claude Code 内置模型 · 已隐藏").waitFor();
+    assert(await button("上移 Alpha").isDisabled());
+    await button("上移 legacy-outside-list").click();
+    assert.deepEqual(await names(), ["legacy-outside-list", "Alpha"]);
+    await page.screenshot({ path: path.join(out, "menu-order.png") });
+    await page
+      .getByRole("checkbox", { name: "将 legacy-outside-list 加入菜单" })
+      .press("Alt+ArrowDown");
+    assert.deepEqual(await names(), ["Alpha", "legacy-outside-list"]);
+    await button("下移 Alpha").click();
+    await field("将 Alpha 加入菜单").uncheck();
+    assert.equal(await page.locator(".model-row").count(), 2);
+    await button("已选 1").waitFor();
+    await button("保存配置").click();
+    await poll(() => backend.calls.some((c) => c.cmd === "save_model_config"));
+    assert.deepEqual(backend.view.config.pickerModels, ["legacy-outside-list"]);
+    await button("已选 1").click();
+    assert.equal(await page.locator(".model-row").count(), 37);
+  });
+  await test("顶部导航、方向键切换焦点、打开所在文件夹", async () => {
+    await boot({ status: { ...clone(status), processEnv: ["ANTHROPIC_MODEL"] } });
+    await page.getByText(/检测到系统环境变量 ANTHROPIC_MODEL/).waitFor();
+    await page.screenshot({ path: path.join(out, "env-warning.png") });
+    await button("CPA").focus();
+    await page.keyboard.press("ArrowLeft");
+    assert(
+      await button("官方订阅").evaluate((el) => document.activeElement === el),
+    );
+    assert(!backend.calls.some((c) => c.cmd === "switch_mode"));
+    await button("设置").click();
+    await button("打开Claude Code 用户配置所在文件夹").click();
+    await poll(() =>
+      backend.calls.some(
+        (c) => c.cmd === "reveal_location" && c.args.target === "settings",
+      ),
+    );
+    await button("Claude Code").click();
+    await field("搜索模型").waitFor();
   });
   await test("模型名称覆盖列表与所有用途，悬停保留 ID，保存仍使用 ID", async () => {
     await boot();
@@ -340,11 +389,11 @@ try {
     await row.getByRole("checkbox", { name: "将 Alpha 加入菜单" }).waitFor();
     for (const name of ["默认模型", "子代理模型", "自动审批模型", "Opus", "Sonnet", "Haiku"]) {
       const select = field(name);
-      assert.equal(await select.locator('option[value="model-a"]').innerText(), "Alpha");
+      assert.equal(await select.locator('option[value="model-a"]').innerText(), "Alpha · model-a");
       assert.equal(await select.locator('option[value="model-a"]').getAttribute("title"), "model-a");
       assert.equal(await select.locator('option[value="legacy-outside-list"]').innerText(), "legacy-outside-list · 列表外");
       await select.selectOption("model-a");
-      assert.equal(await select.locator("option:checked").innerText(), "Alpha");
+      assert.equal(await select.locator("option:checked").innerText(), "Alpha · model-a");
       assert.equal(await select.getAttribute("title"), "model-a");
     }
     for (const query of ["Alpha", "model-a"]) {
@@ -801,9 +850,10 @@ try {
       },
     });
     await page.getByText("当前使用其他连接").waitFor();
+    await page.screenshot({ path: path.join(out, "other-connection.png") });
     assert(await button("官方订阅").isDisabled());
-    await button("编辑连接").click();
-    await field("地址").fill("http://other.invalid");
+    await button("将此地址保存为 CPA").click();
+    await chosen("地址", "http://other.invalid");
     await button("保存连接").click();
     await page.getByRole("dialog").waitFor({ state: "hidden" });
     await boot();

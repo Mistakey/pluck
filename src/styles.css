@@ -94,60 +94,8 @@ small {
 .app-layout {
   height: 100%;
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   position: relative;
-}
-.sidebar {
-  padding: 32px 12px 16px;
-  background: #f4f7fb;
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.brand {
-  padding: 0 12px;
-  margin-bottom: 48px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 20px;
-  font-weight: 600;
-}
-.brand-mark {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: var(--primary);
-  border-radius: var(--radius);
-  color: white;
-  font-size: 24px;
-}
-.sidebar nav button,
-.settings-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  border: 0;
-  background: none;
-  text-align: left;
-  border-radius: var(--radius);
-  font-size: 12px;
-  color: var(--secondary);
-}
-.sidebar button:hover {
-  background: var(--hover);
-}
-.sidebar button[aria-current="page"] {
-  color: var(--primary-hover);
-  background: #e4ecfa;
-  font-weight: 600;
-}
-.settings-nav {
-  margin-top: auto;
 }
 .dirty-dot {
   width: 6px;
@@ -156,9 +104,6 @@ small {
   background: var(--warning);
   display: inline-block;
   flex-shrink: 0;
-}
-.sidebar .dirty-dot {
-  margin-left: auto;
 }
 .dirty-dot.update {
   background: var(--primary);
@@ -178,9 +123,41 @@ small {
 .heading-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   min-height: 36px;
+}
+.heading-row > h1 {
+  margin-right: auto;
+}
+.heading-row:has(.back) {
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+}
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  font-size: 12px;
+  color: var(--secondary);
+  white-space: nowrap;
+}
+.nav-button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.nav-button .icon {
+  width: 16px;
+  height: 16px;
+}
+.nav-button.back {
+  margin-left: -10px;
+  min-height: 28px;
 }
 .mode-switch {
   display: flex;
@@ -215,6 +192,16 @@ small {
 }
 .link-button:hover:not(:disabled) {
   text-decoration: underline;
+}
+.link-button .icon {
+  width: 14px;
+  height: 14px;
+}
+.settings-row .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .env-warning {
   margin-top: 6px;
@@ -462,6 +449,46 @@ small {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.menu-position {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.reorder {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.reorder button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--secondary);
+}
+.reorder button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.reorder button:disabled {
+  opacity: 0.3;
+}
+.reorder .icon {
+  width: 14px;
+  height: 14px;
+}
+.menu-builtins {
+  padding: 10px 8px 10px 36px;
+  font-size: 12px;
+  color: var(--secondary);
+}
 .model-id {
   max-width: 45%;
   overflow: hidden;
@@ -666,9 +693,16 @@ small {
   max-width: 45em;
 }
 .settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 16px 0;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
+}
+.settings-row > div {
+  min-width: 0;
 }
 .settings-row code {
   display: block;
@@ -717,6 +751,9 @@ small {
   max-height: 128px;
   flex-shrink: 0;
   border-radius: var(--radius);
+}
+.state-error .button {
+  color: var(--text);
 }
 .state-error p {
   overflow-wrap: anywhere;
@@ -819,10 +856,27 @@ small {
   gap: 8px;
   margin-top: 32px;
 }
-@media (max-width: 900px) {
-  .app-layout {
-    grid-template-columns: 156px minmax(0, 1fr);
+@media (max-height: 600px) {
+  .defaults-panel > h2 {
+    margin-bottom: 4px;
   }
+  .defaults-panel .field {
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .defaults-panel .field select {
+    min-height: 32px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .approval-hint {
+    margin: -8px 0 12px;
+  }
+  .alias-disclosure {
+    padding-top: 12px;
+  }
+}
+@media (max-width: 900px) {
   .workspace-heading {
     margin: 0 24px 12px;
     padding: 16px 0 12px;
@@ -860,10 +914,4 @@ small {
     padding-left: 24px;
     padding-right: 24px;
   }
-}
-
-.sidebar nav button {
-  white-space: nowrap;
-  padding-left: 8px;
-  padding-right: 8px;
 }

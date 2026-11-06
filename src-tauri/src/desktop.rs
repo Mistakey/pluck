@@ -121,6 +121,39 @@ async fn save_model_config(
     finish(&app, r)
 }
 
+/// 在文件管理器中显示设置页列出的位置。只接受这三个固定位置，不接受任意路径。
+#[tauri::command]
+fn reveal_location(state: State<'_, App>, target: String) -> std::result::Result<(), String> {
+    let s = &state.service;
+    let path = match target.as_str() {
+        "settings" => s.settings_path(),
+        "data" => s.store_path().to_path_buf(),
+        "config" => s.claude_dir().to_path_buf(),
+        _ => return Err("未知的配置位置。".into()),
+    };
+    reveal(&path).map_err(|e| format!("无法打开所在文件夹：{e}"))
+}
+
+#[cfg(windows)]
+fn reveal(path: &std::path::Path) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    let mut explorer = std::process::Command::new("explorer");
+    if path.is_file() {
+        // explorer 要求 `/select,` 与带引号的路径是同一个参数。
+        explorer.raw_arg(format!("/select,\"{}\"", path.display()));
+    } else {
+        explorer.arg(if path.is_dir() { path } else { path.parent().unwrap_or(path) });
+    }
+    explorer.spawn().map(|_| ())
+}
+
+#[cfg(not(windows))]
+fn reveal(path: &std::path::Path) -> std::io::Result<()> {
+    let dir = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+    let program = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    std::process::Command::new(program).arg(dir).spawn().map(|_| ())
+}
+
 #[tauri::command]
 fn get_update_status(state: State<'_, App>) -> UpdateStatus {
     state.updates.status()
@@ -314,6 +347,7 @@ pub fn build(context: tauri::Context<tauri::Wry>) -> tauri::App {
             get_models,
             refresh_models,
             save_model_config,
+            reveal_location,
             get_update_status,
             check_updates,
             install_update

@@ -19,7 +19,7 @@
 
 ## 项目状态
 
-Windows 0.2.1 已公开发布，采用 Claude Code 单页配置界面：通过配置窗口和托盘管理 Claude Code CLI 的用户级原生配置，切换官方与 CPA，并把 CPA 的模型列表接入 CLI 原生 `/model` 菜单。Skill 管理属于下一阶段。
+Windows 0.3.0 已公开发布，采用 Claude Code 单页配置界面：通过配置窗口和托盘管理 Claude Code CLI 的用户级原生配置，切换官方与 CPA，并把 CPA 的模型列表接入 CLI 原生 `/model` 菜单。Skill 管理属于下一阶段。
 
 采用 Tauri 2、Rust、React 和 TypeScript；Windows 是首个交付平台，不是项目永久的平台限制。首版规格关联 Forge 任务 `pluck-ehl`，任务状态由 Forge 维护。
 
@@ -29,7 +29,7 @@ Windows 0.2.1 已公开发布，采用 Claude Code 单页配置界面：通过�
 
 ## 使用
 
-Windows 10/11 x64 下载 [Pluck 0.2.1 安装包](https://github.com/Mistakey/pluck/releases/download/v0.2.1/Pluck_0.2.1_x64-setup.exe)，使用 NSIS 当前用户安装，无需管理员权限，缺少 WebView2 时由标准安装程序引导安装。固定入口为 [Releases](https://github.com/Mistakey/pluck/releases/latest)，校验值与真实安装升级证据见[发布验证](docs/verification/publication.md)，公司首次安装步骤及构建维护方法见[发布说明](docs/releases.md)。
+Windows 10/11 x64 下载 [Pluck 0.3.0 安装包](https://github.com/Mistakey/pluck/releases/download/v0.3.0/Pluck_0.3.0_x64-setup.exe)，使用 NSIS 当前用户安装，无需管理员权限，缺少 WebView2 时由标准安装程序引导安装。固定入口为 [Releases](https://github.com/Mistakey/pluck/releases/latest)，各版本校验值见对应 Release 的 `SHA256SUMS.txt`，真实安装升级证据见[发布验证](docs/verification/publication.md)，公司首次安装步骤及构建维护方法见[发布说明](docs/releases.md)。
 
 已有免安装版先从托盘退出，再手动安装一次安装版。应用标识和数据目录不变，已有连接、Key、列表、模式快照及 Claude 用户配置继续沿用；不要把旧免安装进程的单实例响应当作安装版已启动。
 
